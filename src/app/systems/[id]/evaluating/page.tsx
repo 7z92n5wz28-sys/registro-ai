@@ -57,7 +57,7 @@ export default function EvaluatingPage({ params }: { params: Promise<{ id: strin
         // Phase 2: Analyze
         setPhase("analyzing");
         setStatus("Analisi intelligente dei requisiti...");
-        await fetch("/api/evaluate/analyze", {
+        const analyzeRes = await fetch("/api/evaluate/analyze", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
@@ -65,6 +65,11 @@ export default function EvaluatingPage({ params }: { params: Promise<{ id: strin
             systemId: system.id
           })
         });
+
+        if (!analyzeRes.ok) {
+          const errData = await analyzeRes.json();
+          throw new Error(errData.error || "Errore durante l'analisi AI");
+        }
 
         // Phase 3: Collect results
         const { data: evidences } = await supabase

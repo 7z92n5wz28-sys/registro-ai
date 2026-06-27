@@ -63,15 +63,19 @@ export async function POST(req: Request) {
         ]
       });
 
-      const extracted = JSON.parse(extractionResponse.choices[0].message.content || "{}");
+      const extractedText = extractionResponse.choices[0].message.content || "{}";
+      console.log("OpenAI raw response:", extractedText);
+      const extracted = JSON.parse(extractedText);
       if (extracted.evidences && Array.isArray(extracted.evidences)) {
         aiEvidences = extracted.evidences.map((e: any) => ({
           evaluation_id: evaluationId,
           parameter_key: e.parameter_key,
           ai_proposed_value: e.ai_proposed_value,
           ai_rationale: e.ai_rationale,
-          ai_confidence: "high"
+          ai_confidence: "inferred"
         }));
+      } else {
+        console.warn("OpenAI did not return an array of evidences! Extracted object:", extracted);
       }
 
       if (extracted.system_info) {
@@ -138,11 +142,11 @@ export async function POST(req: Request) {
       console.log("No OPENAI_API_KEY provided. Using mock data.");
       
       aiEvidences = [
-        { evaluation_id: evaluationId, parameter_key: "q1", ai_proposed_value: "no", ai_rationale: "Nessun rischio di manipolazione.", ai_confidence: "high" },
-        { evaluation_id: evaluationId, parameter_key: "q2", ai_proposed_value: "no", ai_rationale: "Non effettua social scoring.", ai_confidence: "high" },
-        { evaluation_id: evaluationId, parameter_key: "q3", ai_proposed_value: "no", ai_rationale: "Non rileva emozioni.", ai_confidence: "high" },
-        { evaluation_id: evaluationId, parameter_key: "q4", ai_proposed_value: "no", ai_rationale: "Nessuna categorizzazione biometrica.", ai_confidence: "high" },
-        { evaluation_id: evaluationId, parameter_key: "q5", ai_proposed_value: "no", ai_rationale: "Non incide sull'accesso all'istruzione.", ai_confidence: "high" }
+        { evaluation_id: evaluationId, parameter_key: "q1", ai_proposed_value: "no", ai_rationale: "Nessun rischio di manipolazione.", ai_confidence: "inferred" },
+        { evaluation_id: evaluationId, parameter_key: "q2", ai_proposed_value: "no", ai_rationale: "Non effettua social scoring.", ai_confidence: "inferred" },
+        { evaluation_id: evaluationId, parameter_key: "q3", ai_proposed_value: "no", ai_rationale: "Non rileva emozioni.", ai_confidence: "inferred" },
+        { evaluation_id: evaluationId, parameter_key: "q4", ai_proposed_value: "no", ai_rationale: "Nessuna categorizzazione biometrica.", ai_confidence: "inferred" },
+        { evaluation_id: evaluationId, parameter_key: "q5", ai_proposed_value: "no", ai_rationale: "Non incide sull'accesso all'istruzione.", ai_confidence: "inferred" }
       ];
 
       dpoConditions = "Assicurarsi di non inserire nomi di studenti nei prompt. Disattivare la cronologia di salvataggio dei dati sul server del fornitore.";
@@ -152,7 +156,13 @@ export async function POST(req: Request) {
 
     // Save evidences to DB
     if (aiEvidences.length > 0) {
-      await supabase.from("ai_evidences").insert(aiEvidences);
+      const { error: insertError } = await supabase.from("ai_evidences").insert(aiEvidences);
+      if (insertError) {
+        console.error("Error inserting evidences:", insertError);
+        throw insertError;
+      }
+    } else {
+      console.warn("WARNING: aiEvidences array is empty! This means OpenAI didn't return any evidences.");
     }
 
     // Calcola score deterministico
