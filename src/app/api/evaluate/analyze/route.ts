@@ -39,33 +39,54 @@ export async function POST(req: Request) {
 
     if (OPENAI_API_KEY) {
       const openai = new OpenAI({ apiKey: OPENAI_API_KEY });
+      const truncatedContext = contextText.substring(0, 30000);
 
-      // PROMPT 1: Estrazione Evidenze e Tipologia Strumento
-      const extractionResponse = await openai.chat.completions.create({
+      const promptSystem = `Sei un esperto legale, DPO scolastico e analista IT specializzato in AI Act. Analizza il contesto fornito e restituisci un SINGOLO OGGETTO JSON con la seguente struttura esatta:
+{
+  "evidences": [
+    { "parameter_key": "q1", "ai_proposed_value": "yes|no", "ai_rationale": "..." },
+    { "parameter_key": "q2", "ai_proposed_value": "yes|no", "ai_rationale": "..." },
+    { "parameter_key": "q3", "ai_proposed_value": "yes|no", "ai_rationale": "..." },
+    { "parameter_key": "q4", "ai_proposed_value": "yes|no", "ai_rationale": "..." },
+    { "parameter_key": "q5", "ai_proposed_value": "yes|no", "ai_rationale": "..." }
+  ],
+  "system_info": {
+    "categories": ["writing_assistant", "chatbot", "image_generator", "presentations", "quiz", "concept_maps", "search", "translation", "coding", "accessibility_bes_dsa", "other"],
+    "subjects": ["students", "minor_students", "teachers", "ata", "families", "no_personal_data"],
+    "activities_didattica": ["teaching_materials", "quiz", "tutoring", "bes_dsa", "research", "coding", "other"],
+    "activities_amministrazione": ["circulars", "spreadsheets", "schedules", "pnrr", "other"]
+  },
+  "classification": {
+    "risk_level": "unacceptable" | "high" | "minimal",
+    "q1_manipulation": "yes" | "no",
+    "q2_social_scoring": "yes" | "no",
+    "q3_emotion": "yes" | "no",
+    "q4_biometric": "yes" | "no",
+    "q5_education_access": "yes" | "no"
+  },
+  "dpo_conditions": "Raccomandazioni di mitigazione in italiano (max 500 caratteri)"
+}
+
+REGOLE CRITICHE:
+- 'evidences': DEVE contenere SEMPRE 5 elementi esatti per q1, q2, q3, q4, q5. Se non ci sono evidenze di violazioni, usa "no" e spiega nel rationale l'assenza di rischi.
+- 'system_info': seleziona dai valori ammessi mostrati sopra (estrai solo quelli rilevanti).
+- 'classification.risk_level': se una pratica vietata (q1-q4) è "yes", il rischio è "unacceptable". Se q5 è "yes", il rischio è "high". Altrimenti "minimal".
+- 'dpo_conditions': scrivi misure tecniche chiare per l'uso a scuola (non usare markdown).`;
+
+      const response = await openai.chat.completions.create({
         model: "gpt-4o",
         response_format: { type: "json_object" },
         messages: [
-          {
-            role: "system",
-            content: `Sei un esperto legale e un analista IT specializzato in AI Act. Estrai evidenze strutturate dal contesto fornito. Restituisci JSON con:
-            1. 'evidences': array di { parameter_key, ai_proposed_value, ai_rationale }. IMPORTANTISSIMO: L'array 'evidences' DEVE contenere SEMPRE esattamente 5 elementi. I 'parameter_key' DEVONO essere esattamente 'q1', 'q2', 'q3', 'q4', 'q5' corrispondenti ai 5 divieti dell'AI Act (manipolazione, social scoring, riconoscimento emozioni, categorizzazione biometrica, accesso istituzioni). Se non ci sono evidenze che il sistema compia una certa pratica, imposta 'ai_proposed_value' a "no" e usa il rationale per spiegare l'assenza di rischi (es. "Nessun riscontro di pratiche di social scoring").
-            2. 'system_info': oggetto contenente:
-               - 'categories': array di stringhe (valori ammessi: "writing_assistant", "chatbot", "image_generator", "presentations", "quiz", "concept_maps", "search", "translation", "coding", "accessibility_bes_dsa", "other")
-               - 'subjects': array di stringhe (valori ammessi: "students", "minor_students", "teachers", "ata", "families", "no_personal_data")
-               - 'activities_didattica': array di stringhe (valori ammessi: "teaching_materials", "quiz", "tutoring", "bes_dsa", "research", "coding", "other")
-               - 'activities_amministrazione': array di stringhe (valori ammessi: "circulars", "spreadsheets", "schedules", "pnrr", "other")
-            Inferisci le informazioni nel modo più plausibile in base alla documentazione trovata o alle conoscenze generali sullo strumento e sul fornitore.`
-          },
-          {
-            role: "user",
-            content: contextText.substring(0, 50000) // Truncate context to avoid token limits
-          }
+          { role: "system", content: promptSystem },
+          { role: "user", content: truncatedContext }
         ]
       });
 
-      const extractedText = extractionResponse.choices[0].message.content || "{}";
-      console.log("OpenAI raw response:", extractedText);
+      const extractedText = response.choices[0].message.content || "{}";
+      console.log("OpenAI raw single-pass response:", extractedText);
       const extracted = JSON.parse(extractedText);
+
+      // 1. Evidences
       if (extracted.evidences && Array.isArray(extracted.evidences)) {
         aiEvidences = extracted.evidences.map((e: any) => ({
           evaluation_id: evaluationId,
@@ -78,6 +99,7 @@ export async function POST(req: Request) {
         console.warn("OpenAI did not return an array of evidences! Extracted object:", extracted);
       }
 
+      // 2. System Info
       if (extracted.system_info) {
         await supabase.from("ai_systems").update({
           categories: extracted.system_info.categories || [],
@@ -87,56 +109,20 @@ export async function POST(req: Request) {
         }).eq("id", systemId);
       }
 
-      // PROMPT 2: Classificazione Rischio AI Act
-      const classificationResponse = await openai.chat.completions.create({
-        model: "gpt-4o",
-        response_format: { type: "json_object" },
-        messages: [
-          {
-            role: "system",
-            content: `Sei un AI Act compliance officer. Basandoti sul contesto, determina se il sistema compie pratiche vietate (manipolazione, social scoring, emotion recognition, categorizzazione biometrica) o ad alto rischio (accesso istruzione). Restituisci JSON: 
-            {
-              "risk_level": "unacceptable" | "high" | "minimal",
-              "q1_manipulation": "yes" | "no",
-              "q2_social_scoring": "yes" | "no",
-              "q3_emotion": "yes" | "no",
-              "q4_biometric": "yes" | "no",
-              "q5_education_access": "yes" | "no"
-            }`
-          },
-          {
-            role: "user",
-            content: contextText.substring(0, 50000)
-          }
-        ]
-      });
+      // 3. Classification
+      if (extracted.classification) {
+        riskLevel = extracted.classification.risk_level || "minimal";
+        complianceReqs = {
+          q1: extracted.classification.q1_manipulation || "no",
+          q2: extracted.classification.q2_social_scoring || "no",
+          q3: extracted.classification.q3_emotion || "no",
+          q4: extracted.classification.q4_biometric || "no",
+          q5: extracted.classification.q5_education_access || "no"
+        };
+      }
 
-      const classData = JSON.parse(classificationResponse.choices[0].message.content || "{}");
-      riskLevel = classData.risk_level || "minimal";
-      complianceReqs = {
-        q1: classData.q1_manipulation || "no",
-        q2: classData.q2_social_scoring || "no",
-        q3: classData.q3_emotion || "no",
-        q4: classData.q4_biometric || "no",
-        q5: classData.q5_education_access || "no"
-      };
-
-      // PROMPT 3: Raccomandazioni di mitigazione
-      const mitigationResponse = await openai.chat.completions.create({
-        model: "gpt-4o",
-        messages: [
-          {
-            role: "system",
-            content: "Sei un DPO per istituti scolastici. Basandoti sul sistema analizzato, scrivi un paragrafo (max 500 caratteri) con le condizioni e misure tecniche necessarie per utilizzarlo in sicurezza a scuola. Non usare markdown, solo testo."
-          },
-          {
-            role: "user",
-            content: `Risk level: ${riskLevel}. Context: ${contextText.substring(0, 10000)}`
-          }
-        ]
-      });
-
-      dpoConditions = mitigationResponse.choices[0].message.content || "";
+      // 4. DPO Conditions
+      dpoConditions = extracted.dpo_conditions || "";
 
     } else {
       console.log("No OPENAI_API_KEY provided. Using mock data.");
