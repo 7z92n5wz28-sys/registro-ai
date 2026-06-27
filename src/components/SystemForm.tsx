@@ -14,20 +14,10 @@ export default function SystemForm({
 }) {
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
-    e.preventDefault();
-    setIsSubmitting(true);
-    try {
-      await action(new FormData(e.currentTarget));
-    } catch (error) {
-      console.error(error);
-      alert("Si è verificato un errore durante il salvataggio.");
-      setIsSubmitting(false);
-    }
-  }
+  // Il submit è gestito nativamente da Next.js tramite l'attributo action={action}
 
   return (
-    <form onSubmit={handleSubmit} className="flex flex-col gap-8">
+    <form action={action} onSubmit={() => setIsSubmitting(true)} className="flex flex-col gap-8">
       <section className="flex flex-col gap-4">
         <h3 className="font-semibold text-[var(--text-primary)] border-b border-[var(--border-soft)] pb-2">Dati di base</h3>
         
