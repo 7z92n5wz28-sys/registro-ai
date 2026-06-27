@@ -9,11 +9,19 @@
     "lint": "eslint"
   },
   "dependencies": {
+    "@mendable/firecrawl-js": "^4.28.3",
+    "@sentry/nextjs": "^10.62.0",
+    "@supabase/ssr": "^0.12.0",
+    "@supabase/supabase-js": "^2.108.2",
+    "@tavily/core": "^0.7.6",
+    "lucide-react": "^1.21.0",
     "next": "16.2.9",
+    "openai": "^6.45.0",
     "react": "19.2.4",
     "react-dom": "19.2.4"
   },
   "devDependencies": {
+    "@tailwindcss/forms": "^0.5.11",
     "@tailwindcss/postcss": "^4",
     "@types/node": "^20",
     "@types/react": "^19",
