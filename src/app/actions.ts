@@ -1,6 +1,7 @@
 "use server";
 
 import { createClient } from "@/utils/supabase/server";
+import { createClient as createSupabaseClient } from "@supabase/supabase-js";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
@@ -8,8 +9,14 @@ import { redirect } from "next/navigation";
 const DEMO_INSTITUTION_ID = "11111111-1111-1111-1111-111111111111";
 const DEMO_USER_ID = "22222222-2222-2222-2222-222222222222";
 
+function createAdminClient() {
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+  const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
+  return createSupabaseClient(supabaseUrl, supabaseKey);
+}
+
 export async function createAISystem(formData: FormData) {
-  const supabase = await createClient();
+  const supabase = createAdminClient();
 
   const name = formData.get("name") as string;
   const provider = formData.get("provider") as string;
@@ -17,10 +24,10 @@ export async function createAISystem(formData: FormData) {
   
   // Arrays vuoti di default (saranno inferiti dall'AI e rivisti nel wizard)
   const activity_area = "didattica";
-  const categories: string[] = [];
-  const subjects: string[] = [];
-  const activities_didattica: string[] = [];
-  const activities_amministrazione: string[] = [];
+  const categories: any[] = [];
+  const subjects: any[] = [];
+  const activities_didattica: any[] = [];
+  const activities_amministrazione: any[] = [];
 
   const { data: system, error } = await supabase
     .from("ai_systems")
@@ -69,7 +76,7 @@ export async function createAISystem(formData: FormData) {
 }
 
 export async function updateAISystem(id: string, formData: FormData) {
-  const supabase = await createClient();
+  const supabase = createAdminClient();
 
   const name = formData.get("name") as string;
   const provider = formData.get("provider") as string;
@@ -110,7 +117,7 @@ export async function updateAISystem(id: string, formData: FormData) {
 }
 
 export async function saveEvaluationDraft(systemId: string, evaluationId: string, data: any) {
-  const supabase = await createClient();
+  const supabase = createAdminClient();
 
   const { error } = await supabase
     .from("evaluations")
@@ -138,7 +145,7 @@ export async function saveEvaluationDraft(systemId: string, evaluationId: string
 }
 
 export async function submitEvaluation(systemId: string, evaluationId: string, data: any) {
-  const supabase = await createClient();
+  const supabase = createAdminClient();
 
   const { error } = await supabase
     .from("evaluations")
