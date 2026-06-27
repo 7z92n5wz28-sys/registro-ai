@@ -102,7 +102,7 @@ export async function POST(req: Request) {
       }
     }
 
-    return NextResponse.json({ success: true, count: crawlResults.length });
+    return NextResponse.json({ success: true, count: crawlResults.length, sourcesCount: crawlResults.length });
   } catch (error: any) {
     console.error("Error in evaluate/search:", error);
     return NextResponse.json({ error: error.message || "Internal server error" }, { status: 500 });
