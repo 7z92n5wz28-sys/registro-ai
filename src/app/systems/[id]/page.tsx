@@ -2,7 +2,6 @@ import { createClient } from "@/utils/supabase/server";
 import { ArrowLeft, Pencil, ShieldAlert, AlertTriangle, FileText, CheckCircle2, Clock, XCircle, ExternalLink } from "lucide-react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import AutoEvaluationAction from "@/components/AutoEvaluationAction";
 
 export default async function SystemDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const supabase = await createClient();
@@ -70,18 +69,11 @@ export default async function SystemDetailPage({ params }: { params: Promise<{ i
                     Questo strumento è stato censito ma non è ancora stata completata la valutazione dei rischi ai sensi dell'AI Act.
                   </p>
                 </div>
-                <div className="flex gap-4 mt-2">
+                <div className="flex gap-4 mt-4">
                   <Link href={`/systems/${id}/evaluate/manual`} className="header-btn bg-[var(--text-primary)] text-white hover:bg-[var(--text-secondary)] hover:text-white border-transparent">
                     <FileText size={16} />
-                    <span>Compila Manualmente</span>
+                    <span>Verifica Risultati AI e Compila Manualmente</span>
                   </Link>
-                  <AutoEvaluationAction 
-                    systemId={id} 
-                    evaluationId={displayData.id} 
-                    name={displayData.system_name || displayData.name} 
-                    provider={displayData.provider} 
-                    websiteUrl={displayData.website_url} 
-                  />
                 </div>
               </div>
             )}

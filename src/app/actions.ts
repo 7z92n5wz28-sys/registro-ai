@@ -14,15 +14,13 @@ export async function createAISystem(formData: FormData) {
   const name = formData.get("name") as string;
   const provider = formData.get("provider") as string;
   const website_url = formData.get("website_url") as string;
-  const activity_area = formData.get("activity_area") as string;
   
-  // Arrays
-  const categories = formData.getAll("categories") as string[];
-  const subjects = formData.getAll("subjects") as string[];
-  const activities = formData.getAll("activities") as string[];
-
-  const activities_didattica = activity_area === "didattica" ? activities : [];
-  const activities_amministrazione = activity_area === "amministrazione" ? activities : [];
+  // Arrays vuoti di default (saranno inferiti dall'AI e rivisti nel wizard)
+  const activity_area = "didattica";
+  const categories: string[] = [];
+  const subjects: string[] = [];
+  const activities_didattica: string[] = [];
+  const activities_amministrazione: string[] = [];
 
   const { data: system, error } = await supabase
     .from("ai_systems")
@@ -31,11 +29,11 @@ export async function createAISystem(formData: FormData) {
       name,
       provider,
       website_url,
-      activity_area: activity_area as any,
-      categories: categories as any[],
-      subjects: subjects as any[],
-      activities_didattica: activities_didattica as any[],
-      activities_amministrazione: activities_amministrazione as any[],
+      activity_area,
+      categories,
+      subjects,
+      activities_didattica,
+      activities_amministrazione,
       created_by: DEMO_USER_ID,
       is_active: true
     })
@@ -67,7 +65,7 @@ export async function createAISystem(formData: FormData) {
   }
 
   revalidatePath("/");
-  redirect(`/systems/${system.id}`);
+  redirect(`/systems/${system.id}/evaluating`);
 }
 
 export async function updateAISystem(id: string, formData: FormData) {

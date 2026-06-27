@@ -40,14 +40,21 @@ export async function POST(req: Request) {
     if (OPENAI_API_KEY) {
       const openai = new OpenAI({ apiKey: OPENAI_API_KEY });
 
-      // PROMPT 1: Estrazione Evidenze
+      // PROMPT 1: Estrazione Evidenze e Tipologia Strumento
       const extractionResponse = await openai.chat.completions.create({
         model: "gpt-4o",
         response_format: { type: "json_object" },
         messages: [
           {
             role: "system",
-            content: "Sei un esperto legale specializzato in AI Act. Estrai evidenze strutturate dal contesto fornito riguardanti l'uso dei dati, le pratiche vietate e i requisiti di trasparenza. Restituisci JSON con una chiave 'evidences' (array di { parameter_key, ai_proposed_value, ai_rationale })."
+            content: `Sei un esperto legale e un analista IT specializzato in AI Act. Estrai evidenze strutturate dal contesto fornito. Restituisci JSON con:
+            1. 'evidences': array di { parameter_key, ai_proposed_value, ai_rationale }. IMPORTANTISSIMO: I 'parameter_key' DEVONO essere esattamente 'q1', 'q2', 'q3', 'q4', 'q5' corrispondenti ai 5 divieti dell'AI Act (manipolazione, social scoring, riconoscimento emozioni, categorizzazione biometrica, accesso istituzioni).
+            2. 'system_info': oggetto contenente:
+               - 'categories': array di stringhe (valori ammessi: "writing_assistant", "chatbot", "image_generator", "presentations", "quiz", "concept_maps", "search", "translation", "coding", "accessibility_bes_dsa", "other")
+               - 'subjects': array di stringhe (valori ammessi: "students", "minor_students", "teachers", "ata", "families", "no_personal_data")
+               - 'activities_didattica': array di stringhe (valori ammessi: "teaching_materials", "quiz", "tutoring", "bes_dsa", "research", "coding", "other")
+               - 'activities_amministrazione': array di stringhe (valori ammessi: "circulars", "spreadsheets", "schedules", "pnrr", "other")
+            Inferisci le informazioni nel modo più plausibile in base alla documentazione trovata o alle conoscenze generali sullo strumento e sul fornitore.`
           },
           {
             role: "user",
@@ -65,6 +72,15 @@ export async function POST(req: Request) {
           ai_rationale: e.ai_rationale,
           ai_confidence: "high"
         }));
+      }
+
+      if (extracted.system_info) {
+        await supabase.from("ai_systems").update({
+          categories: extracted.system_info.categories || [],
+          subjects: extracted.system_info.subjects || [],
+          activities_didattica: extracted.system_info.activities_didattica || [],
+          activities_amministrazione: extracted.system_info.activities_amministrazione || []
+        }).eq("id", systemId);
       }
 
       // PROMPT 2: Classificazione Rischio AI Act

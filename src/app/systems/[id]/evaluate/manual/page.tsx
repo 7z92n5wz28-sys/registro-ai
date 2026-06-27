@@ -32,6 +32,12 @@ export default async function ManualEvaluationPage({ params }: { params: Promise
     notFound();
   }
 
+  // Fetch AI evidences
+  const { data: aiEvidences } = await supabase
+    .from("ai_evidences")
+    .select("*")
+    .eq("evaluation_id", evaluation.id);
+
   return (
     <div className="flex flex-col gap-6 max-w-6xl mx-auto">
       <div className="flex items-center gap-4 mb-2">
@@ -39,12 +45,12 @@ export default async function ManualEvaluationPage({ params }: { params: Promise
           <ArrowLeft size={20} />
         </Link>
         <div>
-          <h1 className="main-title text-2xl">Valutazione Manuale: {system.name}</h1>
-          <p className="subtitle">Completa l'analisi di rischio e i requisiti normativi</p>
+          <h1 className="main-title text-2xl">Revisione Assistita: {system.name}</h1>
+          <p className="subtitle">Verifica l'analisi automatica dell'AI e integra le informazioni mancanti</p>
         </div>
       </div>
 
-      <ManualEvaluationWizard system={system} evaluation={evaluation} />
+      <ManualEvaluationWizard system={system} evaluation={evaluation} aiEvidences={aiEvidences || []} />
     </div>
   );
 }

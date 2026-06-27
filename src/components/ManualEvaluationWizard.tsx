@@ -1,13 +1,14 @@
 "use client";
 
 import { useState } from "react";
-import { ArrowLeft, ArrowRight, Save, CheckCircle2, AlertTriangle, ShieldAlert } from "lucide-react";
+import { ArrowLeft, ArrowRight, Save, CheckCircle2, AlertTriangle, ShieldAlert, Info } from "lucide-react";
 import Link from "next/link";
 import { saveEvaluationDraft, submitEvaluation } from "@/app/actions";
 
 interface WizardProps {
   system: any;
   evaluation: any;
+  aiEvidences?: any[];
 }
 
 const AI_ACT_QUESTIONS = [
@@ -18,7 +19,7 @@ const AI_ACT_QUESTIONS = [
   { id: "q5", text: "Il sistema viene utilizzato per determinare l'accesso alle istituzioni o valutare i risultati di apprendimento per orientare il percorso formativo?" },
 ];
 
-export default function ManualEvaluationWizard({ system, evaluation }: WizardProps) {
+export default function ManualEvaluationWizard({ system, evaluation, aiEvidences = [] }: WizardProps) {
   const [step, setStep] = useState(1);
   const [isSaving, setIsSaving] = useState(false);
   
@@ -162,12 +163,24 @@ export default function ManualEvaluationWizard({ system, evaluation }: WizardPro
             </p>
 
             <div className="flex flex-col gap-5">
-              {AI_ACT_QUESTIONS.map((q, idx) => (
+              {AI_ACT_QUESTIONS.map((q, idx) => {
+                const evidence = aiEvidences.find(e => e.parameter_key === q.id || e.parameter_key.includes(`q${idx + 1}`));
+                return (
                 <div key={q.id} className="p-4 rounded-xl border border-[var(--border-soft)] bg-[var(--bg-muted)] hover:border-[var(--primary)] transition-colors group">
                   <p className="text-sm font-medium text-[var(--text-primary)] mb-3">
                     <span className="text-[var(--primary)] font-bold mr-2">Q{idx + 1}.</span>
                     {q.text}
                   </p>
+
+                  {evidence && (
+                    <div className="mb-4 p-3 bg-[var(--color-g2-glow)] border border-[var(--color-g2)] rounded-lg text-sm text-[var(--text-primary)] flex items-start gap-2">
+                      <Info className="shrink-0 mt-0.5 text-[var(--color-g2)]" size={16} />
+                      <div>
+                        <strong className="text-[var(--color-g2)]">Deduzione AI ({evidence.ai_proposed_value.toUpperCase()}):</strong> {evidence.ai_rationale}
+                      </div>
+                    </div>
+                  )}
+
                   <div className="flex gap-4">
                     <label className={`flex items-center gap-2 px-4 py-2 rounded-lg cursor-pointer border transition-all ${answers[q.id] === 'yes' ? 'bg-[var(--color-g4-glow)] border-[var(--color-g4)] text-[var(--color-g4)] font-medium' : 'bg-white border-[var(--border-soft)] text-[var(--text-secondary)]'}`}>
                       <input type="radio" name={q.id} value="yes" checked={answers[q.id] === 'yes'} onChange={() => setAnswers({...answers, [q.id]: "yes"})} className="hidden" />
@@ -179,7 +192,7 @@ export default function ManualEvaluationWizard({ system, evaluation }: WizardPro
                     </label>
                   </div>
                 </div>
-              ))}
+              )})}
             </div>
 
             {risk !== "da_valutare" && (
