@@ -48,7 +48,7 @@ export async function POST(req: Request) {
           {
             role: "system",
             content: `Sei un esperto legale e un analista IT specializzato in AI Act. Estrai evidenze strutturate dal contesto fornito. Restituisci JSON con:
-            1. 'evidences': array di { parameter_key, ai_proposed_value, ai_rationale }. IMPORTANTISSIMO: I 'parameter_key' DEVONO essere esattamente 'q1', 'q2', 'q3', 'q4', 'q5' corrispondenti ai 5 divieti dell'AI Act (manipolazione, social scoring, riconoscimento emozioni, categorizzazione biometrica, accesso istituzioni).
+            1. 'evidences': array di { parameter_key, ai_proposed_value, ai_rationale }. IMPORTANTISSIMO: L'array 'evidences' DEVE contenere SEMPRE esattamente 5 elementi. I 'parameter_key' DEVONO essere esattamente 'q1', 'q2', 'q3', 'q4', 'q5' corrispondenti ai 5 divieti dell'AI Act (manipolazione, social scoring, riconoscimento emozioni, categorizzazione biometrica, accesso istituzioni). Se non ci sono evidenze che il sistema compia una certa pratica, imposta 'ai_proposed_value' a "no" e usa il rationale per spiegare l'assenza di rischi (es. "Nessun riscontro di pratiche di social scoring").
             2. 'system_info': oggetto contenente:
                - 'categories': array di stringhe (valori ammessi: "writing_assistant", "chatbot", "image_generator", "presentations", "quiz", "concept_maps", "search", "translation", "coding", "accessibility_bes_dsa", "other")
                - 'subjects': array di stringhe (valori ammessi: "students", "minor_students", "teachers", "ata", "families", "no_personal_data")
@@ -138,13 +138,11 @@ export async function POST(req: Request) {
       console.log("No OPENAI_API_KEY provided. Using mock data.");
       
       aiEvidences = [
-        {
-          evaluation_id: evaluationId,
-          parameter_key: "Data Privacy",
-          ai_proposed_value: "Compliant",
-          ai_rationale: "Found GDPR statement in privacy policy",
-          ai_confidence: "high"
-        }
+        { evaluation_id: evaluationId, parameter_key: "q1", ai_proposed_value: "no", ai_rationale: "Nessun rischio di manipolazione.", ai_confidence: "high" },
+        { evaluation_id: evaluationId, parameter_key: "q2", ai_proposed_value: "no", ai_rationale: "Non effettua social scoring.", ai_confidence: "high" },
+        { evaluation_id: evaluationId, parameter_key: "q3", ai_proposed_value: "no", ai_rationale: "Non rileva emozioni.", ai_confidence: "high" },
+        { evaluation_id: evaluationId, parameter_key: "q4", ai_proposed_value: "no", ai_rationale: "Nessuna categorizzazione biometrica.", ai_confidence: "high" },
+        { evaluation_id: evaluationId, parameter_key: "q5", ai_proposed_value: "no", ai_rationale: "Non incide sull'accesso all'istruzione.", ai_confidence: "high" }
       ];
 
       dpoConditions = "Assicurarsi di non inserire nomi di studenti nei prompt. Disattivare la cronologia di salvataggio dei dati sul server del fornitore.";
