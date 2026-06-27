@@ -63,11 +63,11 @@ export async function POST(req: Request) {
       const promptSystem = `Sei un esperto legale, DPO scolastico e analista IT specializzato in AI Act. Analizza il contesto fornito e restituisci un SINGOLO OGGETTO JSON con la seguente struttura esatta:
 {
   "evidences": [
-    { "parameter_key": "q1", "ai_proposed_value": "yes|no", "ai_rationale": "..." },
-    { "parameter_key": "q2", "ai_proposed_value": "yes|no", "ai_rationale": "..." },
-    { "parameter_key": "q3", "ai_proposed_value": "yes|no", "ai_rationale": "..." },
-    { "parameter_key": "q4", "ai_proposed_value": "yes|no", "ai_rationale": "..." },
-    { "parameter_key": "q5", "ai_proposed_value": "yes|no", "ai_rationale": "..." }
+    { "parameter_key": "q1", "ai_proposed_value": "yes|no", "ai_rationale": "Spiegazione dettagliata IN ITALIANO", "ai_source_url": "URL della fonte esatta" },
+    { "parameter_key": "q2", "ai_proposed_value": "yes|no", "ai_rationale": "Spiegazione dettagliata IN ITALIANO", "ai_source_url": "URL della fonte esatta" },
+    { "parameter_key": "q3", "ai_proposed_value": "yes|no", "ai_rationale": "Spiegazione dettagliata IN ITALIANO", "ai_source_url": "URL della fonte esatta" },
+    { "parameter_key": "q4", "ai_proposed_value": "yes|no", "ai_rationale": "Spiegazione dettagliata IN ITALIANO", "ai_source_url": "URL della fonte esatta" },
+    { "parameter_key": "q5", "ai_proposed_value": "yes|no", "ai_rationale": "Spiegazione dettagliata IN ITALIANO", "ai_source_url": "URL della fonte esatta" }
   ],
   "system_info": {
     "categories": ["writing_assistant", "chatbot", "image_generator", "presentations", "quiz", "concept_maps", "search", "translation", "coding", "accessibility_bes_dsa", "other"],
@@ -87,7 +87,8 @@ export async function POST(req: Request) {
 }
 
 REGOLE CRITICHE:
-- 'evidences': DEVE contenere SEMPRE 5 elementi esatti per q1, q2, q3, q4, q5. Se non ci sono evidenze di violazioni, usa "no" e spiega nel rationale l'assenza di rischi.
+- 'evidences': DEVE contenere SEMPRE 5 elementi esatti per q1, q2, q3, q4, q5. Se non ci sono evidenze, usa "no" e spiega nel rationale (SEMPRE IN ITALIANO) l'assenza di rischi.
+- 'ai_source_url': Estrai l'URL corretto dal testo 'Source: [URL]' associato all'informazione usata.
 - 'system_info': seleziona dai valori ammessi mostrati sopra (estrai solo quelli rilevanti).
 - 'classification.risk_level': se una pratica vietata (q1-q4) è "yes", il rischio è "unacceptable". Se q5 è "yes", il rischio è "high". Altrimenti "minimal".
 - 'dpo_conditions': scrivi misure tecniche chiare per l'uso a scuola (non usare markdown).`;
@@ -112,6 +113,7 @@ REGOLE CRITICHE:
           parameter_key: e.parameter_key,
           ai_proposed_value: e.ai_proposed_value,
           ai_rationale: e.ai_rationale,
+          ai_source_url: e.ai_source_url,
           ai_confidence: "inferred"
         }));
       } else {

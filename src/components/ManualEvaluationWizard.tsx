@@ -238,12 +238,25 @@ export default function ManualEvaluationWizard({ system, evaluation, aiEvidences
 
                   {/* AI Evidence box */}
                   {evidence && (
-                    <div className="mb-4 p-3 bg-white border border-[var(--color-g1)] rounded-lg text-sm flex items-start gap-2">
+                    <div className="mb-4 p-3 bg-white border border-[var(--color-g1)] rounded-lg text-sm flex items-start gap-3">
                       <Bot className="shrink-0 mt-0.5 text-[var(--color-g1)]" size={16} />
-                      <div>
-                        <strong className="text-[var(--color-g1)]">Risposta AI: {evidence.ai_proposed_value?.toUpperCase()}</strong>
-                        <p className="text-[var(--text-secondary)] mt-1">{evidence.ai_rationale}</p>
+                      <div className="flex-1">
+                        <strong className="text-[var(--color-g1)] block mb-1">
+                          Proposta AI: {evidence.ai_proposed_value?.toLowerCase() === 'yes' ? 'SÌ' : evidence.ai_proposed_value?.toLowerCase() === 'no' ? 'NO' : evidence.ai_proposed_value?.toUpperCase()}
+                        </strong>
+                        <p className="text-[var(--text-secondary)]">
+                          <span className="font-semibold text-gray-700">Report in Italiano:</span> {evidence.ai_rationale}
+                        </p>
                       </div>
+                      <a 
+                        href={evidence.ai_source_url || system.website_url} 
+                        target="_blank" 
+                        rel="noreferrer"
+                        className="shrink-0 inline-flex items-center gap-1.5 px-3 py-1.5 bg-gray-50 hover:bg-gray-100 text-[var(--text-secondary)] border border-[var(--border-soft)] rounded-md text-xs font-medium transition-colors"
+                        title="Link alla fonte o al sito valutato"
+                      >
+                        Fonte ↗
+                      </a>
                     </div>
                   )}
 
