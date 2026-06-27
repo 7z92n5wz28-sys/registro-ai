@@ -26,6 +26,25 @@ export async function POST(req: Request) {
 
     if (fetchError) throw fetchError;
 
+    // Fetch system to get name/provider for ACN check
+    const { data: systemInfo } = await supabase
+      .from("ai_systems")
+      .select("name, provider")
+      .eq("id", systemId)
+      .single();
+
+    const ACN_QUALIFIED_KEYWORDS = [
+      "google workspace", "microsoft 365", "microsoft azure", "aws", "amazon web services", 
+      "canva", "aruba", "zoom", "cisco webex", "salesforce", "oracle", "sap", "ibm cloud",
+      "cloudflare", "dropbox", "box", "slack", "webex", "adobe"
+    ];
+
+    let isAcnQualified = false;
+    if (systemInfo) {
+      const searchString = `${systemInfo.name} ${systemInfo.provider}`.toLowerCase();
+      isAcnQualified = ACN_QUALIFIED_KEYWORDS.some(kw => searchString.includes(kw));
+    }
+
     const contextText = crawlResults && crawlResults.length > 0 
       ? crawlResults.map((r: any) => `Source: ${r.url}\nContent:\n${r.content_markdown}`).join("\n\n---\n\n")
       : "Nessun contesto aggiuntivo disponibile dal web.";
@@ -174,6 +193,7 @@ REGOLE CRITICHE:
         prohibited_access_determination: complianceReqs.q5 === "yes",
         risk_level: riskLevel,
         dpo_conditions: dpoConditions,
+        dpo_acn_marketplace: isAcnQualified,
         dpo_score: score,
         dpo_auto_verdict: verdict
       })

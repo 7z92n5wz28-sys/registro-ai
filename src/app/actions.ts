@@ -173,3 +173,39 @@ export async function submitEvaluation(systemId: string, evaluationId: string, d
   revalidatePath(`/systems/${systemId}`);
   redirect(`/systems/${systemId}`);
 }
+
+export async function forceReevaluateSystem(systemId: string) {
+  const supabase = createAdminClient();
+
+  // Get current max version
+  const { data: evaluations } = await supabase
+    .from("evaluations")
+    .select("version")
+    .eq("ai_system_id", systemId)
+    .order("version", { ascending: false })
+    .limit(1);
+
+  const currentVersion = (evaluations && evaluations.length > 0) ? evaluations[0].version : 0;
+
+  // Create new draft evaluation
+  const { data: evaluation, error: evalError } = await supabase
+    .from("evaluations")
+    .insert({
+      ai_system_id: systemId,
+      institution_id: DEMO_INSTITUTION_ID,
+      status: "draft",
+      school_year: "2024/2025",
+      version: currentVersion + 1,
+      created_by: DEMO_USER_ID
+    })
+    .select()
+    .single();
+
+  if (evalError) {
+    console.error("Error creating new evaluation draft:", evalError);
+    throw new Error(evalError.message);
+  }
+
+  revalidatePath(`/systems/${systemId}`);
+  redirect(`/systems/${systemId}/evaluating`);
+}

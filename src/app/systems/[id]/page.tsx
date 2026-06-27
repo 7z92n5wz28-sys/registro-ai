@@ -44,6 +44,16 @@ export default async function SystemDetailPage({ params }: { params: Promise<{ i
           </div>
         </div>
         <div className="flex gap-3">
+          <form action={async () => {
+            "use server";
+            const { forceReevaluateSystem } = await import('@/app/actions');
+            await forceReevaluateSystem(id);
+          }}>
+            <button type="submit" className="header-btn border-amber-500/30 bg-amber-500/10 text-amber-600 hover:bg-amber-500/20">
+              <Clock size={16} />
+              <span>Forza Riverifica</span>
+            </button>
+          </form>
           <Link href={`/systems/${id}/edit`} className="header-btn">
             <Pencil size={16} />
             <span>Modifica Base</span>
