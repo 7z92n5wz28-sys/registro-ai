@@ -83,6 +83,12 @@ export default function EvaluatingPage({ params }: { params: Promise<{ id: strin
           .eq("id", systemId)
           .single();
 
+        const { data: updatedEval } = await supabase
+          .from("evaluations")
+          .select("dpo_acn_marketplace")
+          .eq("id", evaluation.id)
+          .single();
+
         const matched = (evidences || []).filter(e => 
           ["q1","q2","q3","q4","q5"].includes(e.parameter_key)
         ).length;
@@ -92,8 +98,9 @@ export default function EvaluatingPage({ params }: { params: Promise<{ id: strin
           aiEvidences: evidences?.length || 0,
           totalQuestions: 5,
           matchedQuestions: matched,
-          systemInfo: updatedSystem
-        });
+          systemInfo: updatedSystem,
+          acnQualified: updatedEval?.dpo_acn_marketplace || false
+        } as any);
 
         setPhase("done");
       } catch (e) {
@@ -142,7 +149,7 @@ export default function EvaluatingPage({ params }: { params: Promise<{ id: strin
         </p>
 
         {/* Summary Stats */}
-        <div className="grid grid-cols-3 gap-4 w-full">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 w-full">
           <div className="card !p-4 text-center">
             <Search size={24} className="mx-auto mb-2 text-[var(--primary)]" />
             <p className="text-2xl font-bold text-[var(--text-primary)]">{result.searchSources}</p>
@@ -157,6 +164,13 @@ export default function EvaluatingPage({ params }: { params: Promise<{ id: strin
             <AlertTriangle size={24} className="mx-auto mb-2 text-[var(--color-g3)]" />
             <p className="text-2xl font-bold text-[var(--color-g3)]">{manualNeeded}</p>
             <p className="text-xs text-[var(--text-muted)] mt-1">Richiedono input manuale</p>
+          </div>
+          <div className={`card !p-4 text-center ${result.acnQualified ? 'border-[var(--color-g1)] bg-[var(--color-g1-glow)]' : 'border-[var(--color-g4)] bg-[var(--color-g4-glow)]'}`}>
+            <Brain size={24} className={`mx-auto mb-2 ${result.acnQualified ? 'text-[var(--color-g1)]' : 'text-[var(--color-g4)]'}`} />
+            <p className={`text-lg font-bold ${result.acnQualified ? 'text-[var(--color-g1)]' : 'text-[var(--color-g4)]'}`}>
+              {result.acnQualified ? "Trovata" : "Assente"}
+            </p>
+            <p className="text-xs text-[var(--text-muted)] mt-1">Qualifica Cloud ACN</p>
           </div>
         </div>
 
