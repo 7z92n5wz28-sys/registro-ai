@@ -11,6 +11,7 @@ interface EvalResult {
   totalQuestions: number;
   matchedQuestions: number;
   systemInfo: any;
+  acnQualified?: boolean;
 }
 
 export default function EvaluatingPage({ params }: { params: Promise<{ id: string }> }) {
