@@ -26,7 +26,7 @@ export async function POST(req: Request) {
     // 1. TAVILY SEARCH
     if (TAVILY_API_KEY) {
       const tvly = tavily({ apiKey: TAVILY_API_KEY });
-      const query = `AI Act compliance privacy policy terms of service security for ${name} ${provider || ""}`;
+      const query = `"${name}" (privacy policy OR terms of service OR security)`;
       
       try {
         const searchResponse = await tvly.search(query, {
