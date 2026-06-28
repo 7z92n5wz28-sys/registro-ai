@@ -33,7 +33,14 @@ export default function EvaluatingPage({ params }: { params: Promise<{ id: strin
         
         setStatus("Recupero dati di base...");
         const { data: system } = await supabase.from("ai_systems").select("*").eq("id", systemId).single();
-        const { data: evaluation } = await supabase.from("evaluations").select("*").eq("ai_system_id", systemId).eq("status", "draft").single();
+        const { data: evaluation } = await supabase
+          .from("evaluations")
+          .select("*")
+          .eq("ai_system_id", systemId)
+          .eq("status", "draft")
+          .order("version", { ascending: false })
+          .limit(1)
+          .single();
         
         if (!system || !evaluation) {
           throw new Error("Sistema o valutazione non trovati.");
