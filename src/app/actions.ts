@@ -75,6 +75,26 @@ export async function createAISystem(formData: FormData) {
   redirect(`/systems/${system.id}/evaluating`);
 }
 
+export async function markDpoRequestSent(systemId: string, evaluationId: string) {
+  const supabase = createAdminClient();
+
+  const { error } = await supabase
+    .from("evaluations")
+    .update({
+      status: "pending_dpo",
+      updated_at: new Date().toISOString()
+    })
+    .eq("id", evaluationId);
+
+  if (error) {
+    console.error("Error marking DPO request sent:", error);
+    throw new Error(error.message);
+  }
+
+  revalidatePath(`/systems/${systemId}`);
+  redirect(`/systems/${systemId}`);
+}
+
 export async function updateAISystem(id: string, formData: FormData) {
   const supabase = createAdminClient();
 

@@ -9,6 +9,7 @@ interface DpoVerdictFormProps {
   evaluationId: string;
   autoVerdict: string | null;
   initialConditions: string;
+  redirectUrl?: string;
 }
 
 const VERDICTS = [
@@ -17,7 +18,7 @@ const VERDICTS = [
   { id: "rejected", label: "Non Approvato", description: "Non autorizzato. Lo strumento presenta rischi non accettabili.", icon: ShieldAlert, color: "text-[var(--color-g4)]", border: "border-[var(--color-g4)]", bg: "bg-[var(--color-g4-glow)]" },
 ];
 
-export default function DpoVerdictForm({ systemId, evaluationId, autoVerdict, initialConditions }: DpoVerdictFormProps) {
+export default function DpoVerdictForm({ systemId, evaluationId, autoVerdict, initialConditions, redirectUrl }: DpoVerdictFormProps) {
   const [verdict, setVerdict] = useState(autoVerdict || "approved_with_conditions");
   const [conditions, setConditions] = useState(initialConditions);
   const [motivations, setMotivations] = useState("");
@@ -40,7 +41,7 @@ export default function DpoVerdictForm({ systemId, evaluationId, autoVerdict, in
         throw new Error(data.error || "Errore durante il salvataggio del parere.");
       }
 
-      router.push(`/systems/${systemId}`);
+      router.push(redirectUrl || `/systems/${systemId}`);
       router.refresh();
     } catch (err: any) {
       setError(err.message);
@@ -101,7 +102,7 @@ export default function DpoVerdictForm({ systemId, evaluationId, autoVerdict, in
       )}
 
       <div className="flex justify-end gap-3 pt-2 border-t border-[var(--border-soft)]">
-        <a href={`/systems/${systemId}`} className="header-btn">Annulla</a>
+        {!redirectUrl && <a href={`/systems/${systemId}`} className="header-btn">Annulla</a>}
         <button
           onClick={handleSubmit}
           disabled={isSubmitting}

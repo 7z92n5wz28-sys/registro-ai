@@ -1,7 +1,8 @@
 import { createClient } from "@/utils/supabase/server";
-import { ArrowLeft, Pencil, ShieldAlert, AlertTriangle, FileText, CheckCircle2, Clock, XCircle, ExternalLink } from "lucide-react";
+import { ArrowLeft, Pencil, ShieldAlert, AlertTriangle, FileText, CheckCircle2, Clock, XCircle, ExternalLink, MailCheck } from "lucide-react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import DpoSubmissionCard from "@/components/DpoSubmissionCard";
 
 export default async function SystemDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const supabase = await createClient();
@@ -88,18 +89,24 @@ export default async function SystemDetailPage({ params }: { params: Promise<{ i
               </div>
             )}
             
-            {/* Valutazione in attesa di revisione DPO */}
+            {/* Valutazione in attesa di revisione DPO (Invio) */}
             {displayData.status === "pending_review" && (
+              <DpoSubmissionCard 
+                systemId={id} 
+                evaluationId={displayData.id} 
+                systemName={displayData.system_name || displayData.name} 
+                riskLevel={displayData.risk_level} 
+              />
+            )}
+
+            {/* Valutazione inviata al DPO (Attesa Risposta) */}
+            {displayData.status === "pending_dpo" && (
               <div className="bg-[var(--color-g3-glow)] border border-[var(--color-g3)] p-5 rounded-xl flex flex-col items-center text-center gap-3">
-                <Clock size={36} className="text-[var(--color-g3)]" strokeWidth={1.5} />
+                <MailCheck size={36} className="text-[var(--color-g3)]" strokeWidth={1.5} />
                 <div>
-                  <h3 className="font-semibold text-[var(--color-g3)]">In attesa del Parere DPO</h3>
-                  <p className="text-sm text-[var(--text-secondary)] mt-1">La valutazione è stata completata. Il DPO deve ora rilasciare il parere formale.</p>
+                  <h3 className="font-semibold text-[var(--color-g3)]">Richiesta inviata al DPO</h3>
+                  <p className="text-sm text-[var(--text-secondary)] mt-1">La richiesta di parere è stata trasmessa. In attesa della compilazione del verdetto tramite il link inviato.</p>
                 </div>
-                <Link href={`/systems/${id}/evaluate/dpo`} className="header-btn bg-[var(--color-g3)] text-white border-transparent hover:opacity-90 hover:text-white mt-1">
-                  <ExternalLink size={15} />
-                  Rilascia Parere DPO
-                </Link>
               </div>
             )}
 
@@ -208,7 +215,8 @@ function StatusBadge({ status }: { status: string | null }) {
   
   const statusMap: Record<string, { label: string, colorClass: string, icon: any }> = {
     'draft': { label: 'Bozza', colorClass: 'text-[var(--text-secondary)] bg-[var(--bg-muted)]', icon: Clock },
-    'pending_review': { label: 'In revisione', colorClass: 'text-[var(--color-g3)] bg-[var(--color-g3-glow)]', icon: Clock },
+    'pending_review': { label: 'Da Inviare', colorClass: 'text-[var(--color-g3)] bg-[var(--color-g3-glow)]', icon: Clock },
+    'pending_dpo': { label: 'In attesa DPO', colorClass: 'text-[var(--color-g3)] bg-[var(--color-g3-glow)]', icon: MailCheck },
     'approved': { label: 'Approvato', colorClass: 'text-[var(--color-g1)] bg-[var(--color-g1-glow)]', icon: CheckCircle2 },
     'approved_with_conditions': { label: 'Approv. con cond.', colorClass: 'text-[var(--color-g2)] bg-[var(--color-g2-glow)]', icon: CheckCircle2 },
     'rejected': { label: 'Non Approvato', colorClass: 'text-[var(--color-g4)] bg-[var(--color-g4-glow)]', icon: ShieldAlert },
