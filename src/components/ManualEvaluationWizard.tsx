@@ -244,9 +244,14 @@ export default function ManualEvaluationWizard({ system, evaluation, aiEvidences
                         <strong className="text-[var(--color-g1)] block mb-1">
                           Proposta AI: {evidence.ai_proposed_value?.toLowerCase() === 'yes' ? 'SÌ' : evidence.ai_proposed_value?.toLowerCase() === 'no' ? 'NO' : evidence.ai_proposed_value?.toUpperCase()}
                         </strong>
-                        <p className="text-[var(--text-secondary)]">
+                        <p className="text-[var(--text-secondary)] mb-2">
                           <span className="font-semibold text-gray-700">Report in Italiano:</span> {evidence.ai_rationale}
                         </p>
+                        {evidence.ai_source_snippet && evidence.ai_source_snippet.length > 5 && (
+                          <div className="bg-gray-50 border-l-4 border-gray-300 px-3 py-2 text-xs text-gray-600 italic rounded-r-md mt-1 mb-2 font-mono">
+                            "{evidence.ai_source_snippet}"
+                          </div>
+                        )}
                       </div>
                       <a 
                         href={evidence.ai_source_url || system.website_url} 
