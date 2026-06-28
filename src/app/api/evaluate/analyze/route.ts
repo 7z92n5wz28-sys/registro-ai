@@ -63,11 +63,11 @@ export async function POST(req: Request) {
       const promptSystem = `Sei un esperto legale, DPO scolastico e analista IT specializzato in AI Act. Analizza il contesto fornito e restituisci un SINGOLO OGGETTO JSON con la seguente struttura esatta:
 {
   "evidences": [
-    { "parameter_key": "q1", "ai_proposed_value": "yes|no", "ai_rationale": "Spiegazione dettagliata IN ITALIANO", "ai_source_url": "URL esatto della fonte", "ai_source_snippet": "Esatta citazione del testo analizzato" },
-    { "parameter_key": "q2", "ai_proposed_value": "yes|no", "ai_rationale": "Spiegazione dettagliata IN ITALIANO", "ai_source_url": "URL esatto della fonte", "ai_source_snippet": "Esatta citazione del testo analizzato" },
-    { "parameter_key": "q3", "ai_proposed_value": "yes|no", "ai_rationale": "Spiegazione dettagliata IN ITALIANO", "ai_source_url": "URL esatto della fonte", "ai_source_snippet": "Esatta citazione del testo analizzato" },
-    { "parameter_key": "q4", "ai_proposed_value": "yes|no", "ai_rationale": "Spiegazione dettagliata IN ITALIANO", "ai_source_url": "URL esatto della fonte", "ai_source_snippet": "Esatta citazione del testo analizzato" },
-    { "parameter_key": "q5", "ai_proposed_value": "yes|no", "ai_rationale": "Spiegazione dettagliata IN ITALIANO", "ai_source_url": "URL esatto della fonte", "ai_source_snippet": "Esatta citazione del testo analizzato" }
+    { "parameter_key": "q1", "ai_proposed_value": "yes|no", "ai_rationale": "Spiegazione dettagliata IN ITALIANO", "ai_source_url": "URL esatto della fonte o null", "ai_source_snippet": "Esatta citazione o null" },
+    { "parameter_key": "q2", "ai_proposed_value": "yes|no", "ai_rationale": "Spiegazione dettagliata IN ITALIANO", "ai_source_url": "URL esatto della fonte o null", "ai_source_snippet": "Esatta citazione o null" },
+    { "parameter_key": "q3", "ai_proposed_value": "yes|no", "ai_rationale": "Spiegazione dettagliata IN ITALIANO", "ai_source_url": "URL esatto della fonte o null", "ai_source_snippet": "Esatta citazione o null" },
+    { "parameter_key": "q4", "ai_proposed_value": "yes|no", "ai_rationale": "Spiegazione dettagliata IN ITALIANO", "ai_source_url": "URL esatto della fonte o null", "ai_source_snippet": "Esatta citazione o null" },
+    { "parameter_key": "q5", "ai_proposed_value": "yes|no", "ai_rationale": "Spiegazione dettagliata IN ITALIANO", "ai_source_url": "URL esatto della fonte o null", "ai_source_snippet": "Esatta citazione o null" }
   ],
   "system_info": {
     "categories": ["writing_assistant", "chatbot", "image_generator", "presentations", "quiz", "concept_maps", "search", "translation", "coding", "accessibility_bes_dsa", "other"],
@@ -87,9 +87,9 @@ export async function POST(req: Request) {
 }
 
 REGOLE CRITICHE:
-- 'evidences': DEVE contenere SEMPRE 5 elementi esatti per q1, q2, q3, q4, q5. Se non ci sono evidenze, usa "no" e spiega nel rationale (SEMPRE IN ITALIANO) l'assenza di rischi.
-- 'ai_source_url': Estrai l'URL corretto dal blocco 'Source: [URL]' a cui appartiene il testo usato.
-- 'ai_source_snippet': Copia e incolla qui la porzione esatta di testo originale (citazione virgolettata) che ha portato a questa valutazione, massimo 3 frasi.
+- 'evidences': DEVE contenere SEMPRE 5 elementi esatti per q1, q2, q3, q4, q5. Se non ci sono evidenze nei testi specifici dell'app, usa "no" e spiega nel rationale l'assenza di rischi per quell'app.
+- 'ai_source_url': Estrai l'URL corretto dal blocco 'Source: [URL]' SOLO SE riguarda l'app specifica. Se l'informazione non si trova o il testo è generico (es. la legge europea), restituisci null. Non inserire MAI URL generici sull'AI Act o wikipedia.
+- 'ai_source_snippet': Copia e incolla la porzione di testo. Se non hai evidenze sull'app specifica, restituisci null. Non citare MAI testi di legge generici.
 - 'system_info': seleziona dai valori ammessi mostrati sopra (estrai solo quelli rilevanti).
 - 'classification.risk_level': se una pratica vietata (q1-q4) è "yes", il rischio è "unacceptable". Se q5 è "yes", il rischio è "high". Altrimenti "minimal".
 - 'dpo_conditions': scrivi misure tecniche chiare per l'uso a scuola (non usare markdown).`;
