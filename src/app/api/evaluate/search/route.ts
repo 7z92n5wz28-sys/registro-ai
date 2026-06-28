@@ -36,14 +36,21 @@ export async function POST(req: Request) {
         });
 
         if (searchResponse && searchResponse.results) {
+          // Extract base name to handle cases like "Studierai.app" -> "studierai"
+          const baseName = name.split(/[.\s]/)[0].toLowerCase();
           for (const res of searchResponse.results) {
-            crawlResults.push({
-              evaluation_id: evaluationId,
-              url: res.url,
-              content_markdown: res.rawContent || res.content,
-              crawl_type: "tavily_search",
-              raw_metadata: { score: res.score, title: res.title }
-            });
+            const textContent = (res.rawContent || res.content || "").toLowerCase();
+            if (textContent.includes(baseName)) {
+              crawlResults.push({
+                evaluation_id: evaluationId,
+                url: res.url,
+                content_markdown: res.rawContent || res.content,
+                crawl_type: "tavily_search",
+                raw_metadata: { score: res.score, title: res.title }
+              });
+            } else {
+              console.log(`Skipped Tavily result ${res.url} because it doesn't mention ${baseName}`);
+            }
           }
         }
       } catch (err) {

@@ -87,9 +87,9 @@ export async function POST(req: Request) {
 }
 
 REGOLE CRITICHE:
-- 'evidences': DEVE contenere SEMPRE 5 elementi esatti per q1, q2, q3, q4, q5. Se non ci sono evidenze nei testi specifici dell'app, usa "no" e spiega nel rationale l'assenza di rischi per quell'app.
-- 'ai_source_url': Estrai l'URL corretto dal blocco 'Source: [URL]' SOLO SE il testo estratto menziona ESPLICITAMENTE l'app valutata. Se l'informazione è una regola generale, una best practice, o un articolo di blog/legge (es. termly.io, europa.eu), restituisci null. Non inserire MAI URL generici sull'AI Act.
-- 'ai_source_snippet': Copia e incolla la porzione di testo. Se non hai evidenze tratte direttamente dai documenti del fornitore dell'app, restituisci null. Non citare MAI articoli esterni o leggi generiche.
+- 'evidences': DEVE contenere SEMPRE 5 elementi esatti per q1, q2, q3, q4, q5. Se non ci sono evidenze nei testi specifici per l'app ${systemInfo?.name || "in analisi"}, usa "no" e spiega nel rationale l'assenza di rischi.
+- 'ai_source_url': Estrai l'URL corretto dal blocco 'Source: [URL]' SOLO SE riguarda l'app ${systemInfo?.name || "in analisi"}. Se l'informazione trovata appartiene a un'altra app (es. i-ready) o è una best practice generica (es. termly.io, europa.eu), la devi IGNORARE TOTALMENTE e restituire null. Non inserire MAI URL generici.
+- 'ai_source_snippet': Copia e incolla la porzione di testo. Se non hai evidenze tratte direttamente dai documenti ufficiali di ${systemInfo?.name || "questa app"}, restituisci null. Non citare MAI app di terzi o articoli esterni.
 - 'system_info': seleziona dai valori ammessi mostrati sopra (estrai solo quelli rilevanti).
 - 'classification.risk_level': se una pratica vietata (q1-q4) è "yes", il rischio è "unacceptable". Se q5 è "yes", il rischio è "high". Altrimenti "minimal".
 - 'dpo_conditions': scrivi misure tecniche chiare per l'uso a scuola (non usare markdown).`;
