@@ -19,9 +19,9 @@ export default function RootLayout({
       <body className={`${inter.className} min-h-screen bg-[var(--bg-primary)] text-[var(--text-primary)] antialiased`}>
         <div className="app-container">
           <header className="app-header">
-            <div className="header-logo">
-              <span className="logo-accent">AI</span>
-              <span className="logo-text">ForSchool - Registro AI</span>
+            <div className="header-logo flex items-center gap-3">
+              <img src="/AI_For_School-Logo_Primario-Positivo.svg" alt="AI ForSchool Logo" className="h-10 w-auto" />
+              <span className="logo-text text-[var(--text-secondary)] font-medium text-sm">Registro AI</span>
             </div>
             <div className="header-controls">
               <div className="text-sm font-medium text-[var(--text-secondary)]">

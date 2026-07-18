@@ -3,9 +3,9 @@
 @plugin "@tailwindcss/forms";
 
 @theme {
-  --color-primary: #2F80ED;
-  --color-primary-light: #60a5fa;
-  --color-primary-glow: rgba(47, 128, 237, 0.08);
+  --color-primary: #00918e;
+  --color-primary-light: #1eb0ad;
+  --color-primary-glow: rgba(0, 145, 142, 0.08);
 
   --color-g1: #58C45A;
   --color-g1-glow: rgba(88, 196, 90, 0.12);
@@ -40,9 +40,9 @@
   --bg-input: #FFFFFF;
   --table-header-bg: #F9FAFB;
   --table-row-hover: #F9FAFB;
-  --primary: #2F80ED;
-  --primary-light: #60a5fa;
-  --primary-glow: rgba(47, 128, 237, 0.25);
+  --primary: #00918e;
+  --primary-light: #1eb0ad;
+  --primary-glow: rgba(0, 145, 142, 0.25);
 }
 
 body.dark-theme {
