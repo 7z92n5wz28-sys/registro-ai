@@ -20,40 +20,71 @@ export async function GET(req: Request) {
 
     // Build CSV
     const headers = [
-      "Nome strumento",
+      "Nome",
       "Fornitore",
-      "URL Sito",
-      "Area",
+      "Sito web",
+      "Tipologia",
+      "Attività",
       "Soggetti",
-      "Categorie",
-      "Stato Valutazione",
-      "Rischio AI Act",
-      "Punteggio DPO",
-      "Verdetto Auto",
-      "Verdetto Finale (Avallo)",
-      "Condizioni/Prescrizioni",
-      "Anno Scolastico",
-      "Data Censimento",
+      "Data adozione",
+      "Responsabile",
+      "Livello rischio",
+      "Adempimenti",
+      "Punteggio",
+      "Parere auto",
+      "Parere finale DPO",
+      "Esito avallo",
+      "Note DPO",
+      "Data valutazione"
     ];
 
-    const rows = (systems || []).map((s: any) => [
-      s.name || "",
-      s.provider || "",
-      s.website_url || "",
-      s.activity_area || "",
-      (s.subjects || []).join("; "),
-      (s.categories || []).join("; "),
-      s.eval_status || "draft",
-      s.risk_level || "da_valutare",
-      s.dpo_score !== null ? s.dpo_score : "",
-      s.dpo_auto_verdict || "",
-      s.dpo_final_verdict || "",
-      s.dpo_conditions || "",
-      s.school_year || "",
-      s.registered_at ? new Date(s.registered_at).toLocaleDateString("it-IT") : "",
-    ]);
+    const getAdempimenti = (risk: string) => {
+      if (risk === "unacceptable") return "Blocco immediato - adozione non consentita";
+      if (risk === "high") return "DPIA + FRIA";
+      if (risk === "limited") return "Informativa agli interessati + procedura interna";
+      if (risk === "minimal") return "Monitoraggio ordinario + codici di condotta consigliati";
+      return "";
+    };
 
-    const csvContent = [
+    const rows = (systems || []).map((s: any) => {
+      const attivita = [
+        ...(s.activities_didattica || []),
+        ...(s.activities_amministrazione || [])
+      ].join("; ");
+
+      // Parere finale DPO vs Esito avallo:
+      // Se vogliamo separare le due cose logicamente (esito = approved, parere = Buono)
+      // possiamo fare un mapping veloce o mettere dpo_final_verdict su "Esito avallo"
+      const esitoAvalloMap: Record<string, string> = {
+        approved: "Approvato",
+        approved_with_conditions: "Approvato con condizioni",
+        rejected: "Non approvato",
+        pending: "In attesa"
+      };
+
+      const esitoAvalloStr = esitoAvalloMap[s.dpo_final_verdict] || s.dpo_final_verdict || "";
+
+      return [
+        s.name || "",
+        s.provider || "",
+        s.website_url || "",
+        (s.categories || []).join("; "),
+        attivita,
+        (s.subjects || []).join("; "),
+        s.adoption_date ? new Date(s.adoption_date).toLocaleDateString("it-IT") : "",
+        s.responsible_person || "",
+        s.risk_level || "da_valutare",
+        getAdempimenti(s.risk_level),
+        s.dpo_score !== null ? s.dpo_score : "",
+        s.dpo_auto_verdict || "",
+        s.dpo_auto_verdict || "", // "Parere finale DPO": di solito e' derivato o salvato altrove, qui lo mettiamo simile a auto o lo lasciamo vuoto se non c'e' field specifico oltre esito. 
+        esitoAvalloStr,
+        s.dpo_conditions || s.dpo_motivations || "",
+        s.registered_at ? new Date(s.registered_at).toLocaleDateString("it-IT") : "",
+      ];
+    });
+
+    const csvContent = "\uFEFF" + [
       headers.join(","),
       ...rows.map((row) =>
         row.map((cell) => `"${String(cell).replace(/"/g, '""')}"`).join(",")

@@ -7,6 +7,7 @@ export default function Step4Summary({
   computedRiskLevel,
   dpoScore,
   autoVerdict,
+  autoVerdictLabel,
   isDpo
 }: {
   state: any;
@@ -14,6 +15,7 @@ export default function Step4Summary({
   computedRiskLevel: "unacceptable" | "high" | "minimal";
   dpoScore: number;
   autoVerdict: string;
+  autoVerdictLabel?: string;
   isDpo?: boolean;
 }) {
   return (
@@ -78,7 +80,7 @@ export default function Step4Summary({
           <div className="flex items-center gap-4 mt-2">
             <div className={`w-12 h-12 rounded-full flex items-center justify-center font-bold text-xl ${
               dpoScore >= 6 ? "bg-green-100 text-green-700" :
-              dpoScore >= 0 ? "bg-blue-100 text-blue-700" :
+              dpoScore >= 1 ? "bg-blue-100 text-blue-700" :
               "bg-red-100 text-red-700"
             }`}>
               {dpoScore > 0 ? `+${dpoScore}` : dpoScore}
@@ -86,9 +88,11 @@ export default function Step4Summary({
             <div>
               <div className="text-sm text-[var(--text-secondary)]">Parere automatico proposto</div>
               <div className="text-lg font-bold text-[var(--text-primary)]">
-                {autoVerdict === "approved" && "Approvare"}
-                {autoVerdict === "approved_with_conditions" && "Approvare con Condizioni"}
-                {autoVerdict === "rejected" && "Non Approvare"}
+                {autoVerdictLabel || (
+                  autoVerdict === "approved" ? "Approvare" :
+                  autoVerdict === "approved_with_conditions" ? "Approvare con Condizioni" :
+                  "Non Approvare"
+                )}
               </div>
             </div>
           </div>

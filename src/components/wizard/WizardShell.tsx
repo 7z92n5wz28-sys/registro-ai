@@ -119,11 +119,6 @@ export default function WizardShell({ system, evaluation, aiEvidences = [] }: Wi
   const computeDpoScore = () => {
     let score = 0;
     
-    // Rischio base
-    if (computedRiskLevel === "minimal") score += 2;
-    if (computedRiskLevel === "high") score -= 2;
-    if (computedRiskLevel === "unacceptable") score -= 5;
-    
     // Parametri DPO
     if (state.dpoParams.serverUE === "si") score += 1;
     if (state.dpoParams.serverUE === "no") score -= 1;
@@ -150,13 +145,20 @@ export default function WizardShell({ system, evaluation, aiEvidences = [] }: Wi
 
   // Calcolo Verdetto
   const computeAutoVerdict = () => {
-    if (computedRiskLevel === "unacceptable") return "rejected";
-    if (dpoScore < 0) return "rejected";
-    if (dpoScore >= 0 && dpoScore <= 4) return "approved_with_conditions"; // soglie ipotetiche
-    return "approved";
+    if (dpoScore <= 0) return "rejected";
+    if (dpoScore >= 1 && dpoScore <= 5) return "approved_with_conditions";
+    return "approved"; // 6-9 Buono, >=10 Ottimo
+  };
+
+  const computeAutoVerdictLabel = () => {
+    if (dpoScore <= 0) return "Critico";
+    if (dpoScore >= 1 && dpoScore <= 5) return "Sufficiente";
+    if (dpoScore >= 6 && dpoScore <= 9) return "Buono";
+    return "Ottimo";
   };
 
   const autoVerdict = computeAutoVerdict();
+  const autoVerdictLabel = computeAutoVerdictLabel();
 
   const handleSaveDraft = async () => {
     setIsSaving(true);
@@ -308,6 +310,7 @@ export default function WizardShell({ system, evaluation, aiEvidences = [] }: Wi
             computedRiskLevel={computedRiskLevel}
             dpoScore={dpoScore}
             autoVerdict={autoVerdict}
+            autoVerdictLabel={autoVerdictLabel}
             isDpo={false}
           />
         )}
