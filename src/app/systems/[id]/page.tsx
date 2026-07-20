@@ -111,9 +111,9 @@ export default async function SystemDetailPage({ params }: { params: Promise<{ i
             )}
 
             {/* Valutazione con risultati */}
-            {(displayData.status === "approved" || displayData.status === "approved_with_conditions" || displayData.status === "rejected") && (
+            {(displayData.status === "approved" || displayData.status === "approved_with_conditions" || displayData.status === "rejected" || displayData.status === "pending_review") && (
               <div className="flex flex-col gap-4">
-                <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                   <div className="p-4 rounded-xl bg-[var(--bg-muted)] flex flex-col gap-1">
                     <span className="text-xs font-semibold text-[var(--text-muted)] uppercase tracking-wider">Livello di Rischio</span>
                     <span className={`font-semibold text-base capitalize ${
@@ -131,16 +131,27 @@ export default async function SystemDetailPage({ params }: { params: Promise<{ i
                     <span className="text-xs font-semibold text-[var(--text-muted)] uppercase tracking-wider">Qualificato ACN</span>
                     <span className="font-semibold text-base">{displayData.dpo_acn_marketplace ? "Sì" : "No"}</span>
                   </div>
+                  <div className="p-4 rounded-xl bg-[var(--bg-muted)] flex flex-col gap-1">
+                    <span className="text-xs font-semibold text-[var(--text-muted)] uppercase tracking-wider">Verdetto</span>
+                    <span className={`font-semibold text-base capitalize ${
+                      (displayData.dpo_final_verdict || displayData.dpo_auto_verdict) === "rejected" ? "text-[var(--color-g4)]" :
+                      (displayData.dpo_final_verdict || displayData.dpo_auto_verdict) === "approved" ? "text-[var(--color-g1)]" : "text-[var(--color-g2)]"
+                    }`}>
+                      {(displayData.dpo_final_verdict || displayData.dpo_auto_verdict) === "rejected" ? "Non Approvato" : 
+                       (displayData.dpo_final_verdict || displayData.dpo_auto_verdict) === "approved" ? "Approvato" : 
+                       "Con Condizioni"}
+                    </span>
+                  </div>
                 </div>
                 {displayData.dpo_conditions && (
                   <div>
-                    <p className="text-xs font-semibold text-[var(--text-muted)] uppercase tracking-wider mb-2">Condizioni d'Uso</p>
+                    <p className="text-xs font-semibold text-[var(--text-muted)] uppercase tracking-wider mb-2">Condizioni d'Uso / Mitigazione</p>
                     <p className="text-sm text-[var(--text-secondary)] bg-[var(--bg-muted)] p-3 rounded-xl leading-relaxed">{displayData.dpo_conditions}</p>
                   </div>
                 )}
                 {displayData.dpo_motivations && (
                   <div>
-                    <p className="text-xs font-semibold text-[var(--text-muted)] uppercase tracking-wider mb-2">Motivazione Parere DPO</p>
+                    <p className="text-xs font-semibold text-[var(--text-muted)] uppercase tracking-wider mb-2">Note / Motivazione Avallo DPO</p>
                     <p className="text-sm text-[var(--text-secondary)] bg-[var(--bg-muted)] p-3 rounded-xl leading-relaxed">{displayData.dpo_motivations}</p>
                   </div>
                 )}

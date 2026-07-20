@@ -22,12 +22,26 @@ export async function createAISystem(formData: FormData) {
   const provider = formData.get("provider") as string;
   const website_url = formData.get("website_url") as string;
   
-  // Arrays vuoti di default (saranno inferiti dall'AI e rivisti nel wizard)
-  const activity_area = "didattica";
-  const categories: any[] = [];
-  const subjects: any[] = [];
-  const activities_didattica: any[] = [];
+  const category = formData.get("category") as string;
+  const category_other = formData.get("category_other") as string;
+  const categories = category ? [category === "other" && category_other ? category_other : category] : [];
+
+  const subject = formData.get("subject") as string;
+  const subject_other = formData.get("subject_other") as string;
+  const subjects = subject ? [subject === "other" && subject_other ? subject_other : subject] : [];
+
+  const activity = formData.get("activity") as string;
+  const activity_other = formData.get("activity_other") as string;
+  const final_activity = activity === "other" && activity_other ? activity_other : activity;
+
+  // Semplificazione: salviamo in didattica per ora, poi il DB separa in base al dominio
+  const activities_didattica = final_activity ? [final_activity] : [];
   const activities_amministrazione: any[] = [];
+  const activity_area = "didattica";
+
+  const adoption_date = formData.get("adoption_date") as string;
+  const responsible_person = formData.get("responsible_person") as string;
+  const notes = formData.get("notes") as string;
 
   const { data: system, error } = await supabase
     .from("ai_systems")
@@ -41,6 +55,9 @@ export async function createAISystem(formData: FormData) {
       subjects,
       activities_didattica,
       activities_amministrazione,
+      adoption_date: adoption_date || null,
+      responsible_person,
+      notes,
       created_by: DEMO_USER_ID,
       is_active: true
     })
@@ -72,7 +89,12 @@ export async function createAISystem(formData: FormData) {
   }
 
   revalidatePath("/");
-  redirect(`/systems/${system.id}/evaluating`);
+  
+  if (website_url && website_url.trim().length > 0) {
+    redirect(`/systems/${system.id}/evaluating`);
+  } else {
+    redirect(`/systems/${system.id}/evaluate/manual`);
+  }
 }
 
 export async function markDpoRequestSent(systemId: string, evaluationId: string) {
@@ -101,15 +123,25 @@ export async function updateAISystem(id: string, formData: FormData) {
   const name = formData.get("name") as string;
   const provider = formData.get("provider") as string;
   const website_url = formData.get("website_url") as string;
-  const activity_area = formData.get("activity_area") as string;
   
-  // Arrays
-  const categories = formData.getAll("categories") as string[];
-  const subjects = formData.getAll("subjects") as string[];
-  const activities = formData.getAll("activities") as string[];
+  const category = formData.get("category") as string;
+  const category_other = formData.get("category_other") as string;
+  const categories = category ? [category === "other" && category_other ? category_other : category] : [];
 
-  const activities_didattica = activity_area === "didattica" ? activities : [];
-  const activities_amministrazione = activity_area === "amministrazione" ? activities : [];
+  const subject = formData.get("subject") as string;
+  const subject_other = formData.get("subject_other") as string;
+  const subjects = subject ? [subject === "other" && subject_other ? subject_other : subject] : [];
+
+  const activity = formData.get("activity") as string;
+  const activity_other = formData.get("activity_other") as string;
+  const final_activity = activity === "other" && activity_other ? activity_other : activity;
+
+  const activities_didattica = final_activity ? [final_activity] : [];
+  const activity_area = "didattica";
+
+  const adoption_date = formData.get("adoption_date") as string;
+  const responsible_person = formData.get("responsible_person") as string;
+  const notes = formData.get("notes") as string;
 
   const { error } = await supabase
     .from("ai_systems")
@@ -121,7 +153,9 @@ export async function updateAISystem(id: string, formData: FormData) {
       categories: categories as any[],
       subjects: subjects as any[],
       activities_didattica: activities_didattica as any[],
-      activities_amministrazione: activities_amministrazione as any[],
+      adoption_date: adoption_date || null,
+      responsible_person,
+      notes,
       updated_at: new Date().toISOString(),
     })
     .eq("id", id);
@@ -136,22 +170,49 @@ export async function updateAISystem(id: string, formData: FormData) {
   redirect(`/systems/${id}`);
 }
 
+export async function deleteSystem(id: string) {
+  const supabase = createAdminClient();
+  const { error } = await supabase.from("ai_systems").delete().eq("id", id);
+  if (error) throw new Error(error.message);
+  revalidatePath("/");
+}
+
 export async function saveEvaluationDraft(systemId: string, evaluationId: string, data: any) {
   const supabase = createAdminClient();
 
   const { error } = await supabase
     .from("evaluations")
     .update({
-      prohibited_vulnerability_manipulation: data.compliance_requirements?.q1 === "yes",
-      prohibited_social_scoring: data.compliance_requirements?.q2 === "yes",
-      prohibited_emotion_recognition: data.compliance_requirements?.q3 === "yes",
-      prohibited_biometric_categorization: data.compliance_requirements?.q4 === "yes",
-      prohibited_access_determination: data.compliance_requirements?.q5 === "yes",
-      risk_level: data.risk_level,
-      dpo_conditions: data.dpo_conditions,
-      dpo_score: data.dpo_score,
-      dpo_acn_marketplace: data.dpo_acn_marketplace,
-      dpo_auto_verdict: data.dpo_auto_verdict,
+      // Step 1
+      prohibited_emotion_recognition: data.prohibited?.emotion === "si",
+      prohibited_biometric_categorization: data.prohibited?.biometric === "si",
+      prohibited_social_scoring: data.prohibited?.scoring === "si",
+      prohibited_vulnerability_manipulation: data.prohibited?.manipulation === "si",
+      
+      // Step 2 (Tier 1 & 2)
+      risk_access: data.risk?.access === "si",
+      risk_students: data.risk?.students === "si",
+      risk_orientation: data.risk?.orientation === "si",
+      risk_staff: data.risk?.staff === "si",
+      risk_exam: data.risk?.exam === "si",
+      risk_interaction: data.risk?.interaction === "si",
+      risk_synthetic: data.risk?.synthetic === "si",
+      risk_level: data.computedRiskLevel,
+      
+      // Step 3 (DPO Params)
+      dpo_server_eu: data.dpoParams?.serverUE === "si",
+      dpo_extra_data_required: data.dpoParams?.extraData === "si",
+      dpo_marketing: data.dpoParams?.marketing === "si",
+      dpo_dpa: data.dpoParams?.dpa === "si",
+      dpo_acn_marketplace: data.dpoParams?.acn === "si",
+      dpo_effective_ai_usage: data.dpoParams?.usesAI === "si",
+      dpo_score: data.dpoScore,
+      dpo_auto_verdict: data.autoVerdict,
+      
+      // Step 4 overrides (if any in draft)
+      dpo_final_verdict: data.dpoOverride?.esitoAvallo,
+      dpo_motivations: data.dpoOverride?.noteDPO,
+      
       updated_at: new Date().toISOString()
     })
     .eq("id", evaluationId);
@@ -170,17 +231,38 @@ export async function submitEvaluation(systemId: string, evaluationId: string, d
   const { error } = await supabase
     .from("evaluations")
     .update({
-      prohibited_vulnerability_manipulation: data.compliance_requirements?.q1 === "yes",
-      prohibited_social_scoring: data.compliance_requirements?.q2 === "yes",
-      prohibited_emotion_recognition: data.compliance_requirements?.q3 === "yes",
-      prohibited_biometric_categorization: data.compliance_requirements?.q4 === "yes",
-      prohibited_access_determination: data.compliance_requirements?.q5 === "yes",
-      risk_level: data.risk_level,
-      dpo_conditions: data.dpo_conditions,
-      dpo_score: data.dpo_score,
-      dpo_acn_marketplace: data.dpo_acn_marketplace,
-      dpo_auto_verdict: data.dpo_auto_verdict,
+      // Step 1
+      prohibited_emotion_recognition: data.prohibited?.emotion === "si",
+      prohibited_biometric_categorization: data.prohibited?.biometric === "si",
+      prohibited_social_scoring: data.prohibited?.scoring === "si",
+      prohibited_vulnerability_manipulation: data.prohibited?.manipulation === "si",
+      
+      // Step 2
+      risk_access: data.risk?.access === "si",
+      risk_students: data.risk?.students === "si",
+      risk_orientation: data.risk?.orientation === "si",
+      risk_staff: data.risk?.staff === "si",
+      risk_exam: data.risk?.exam === "si",
+      risk_interaction: data.risk?.interaction === "si",
+      risk_synthetic: data.risk?.synthetic === "si",
+      risk_level: data.computedRiskLevel,
+      
+      // Step 3
+      dpo_server_eu: data.dpoParams?.serverUE === "si",
+      dpo_extra_data_required: data.dpoParams?.extraData === "si",
+      dpo_marketing: data.dpoParams?.marketing === "si",
+      dpo_dpa: data.dpoParams?.dpa === "si",
+      dpo_acn_marketplace: data.dpoParams?.acn === "si",
+      dpo_effective_ai_usage: data.dpoParams?.usesAI === "si",
+      dpo_score: data.dpoScore,
+      dpo_auto_verdict: data.autoVerdict,
+      
+      // Step 4
+      dpo_final_verdict: data.dpoOverride?.esitoAvallo === "in_attesa" ? null : data.dpoOverride?.esitoAvallo,
+      dpo_motivations: data.dpoOverride?.noteDPO,
+      
       status: "pending_review",
+      registered_at: new Date().toISOString(),
       updated_at: new Date().toISOString()
     })
     .eq("id", evaluationId);
@@ -191,7 +273,7 @@ export async function submitEvaluation(systemId: string, evaluationId: string, d
   }
 
   revalidatePath(`/systems/${systemId}`);
-  redirect(`/systems/${systemId}`);
+  redirect(`/`);
 }
 
 export async function forceReevaluateSystem(systemId: string) {
@@ -226,6 +308,14 @@ export async function forceReevaluateSystem(systemId: string) {
     throw new Error(evalError.message);
   }
 
+  // Check if system has website url
+  const { data: system } = await supabase.from("ai_systems").select("website_url").eq("id", systemId).single();
+  
   revalidatePath(`/systems/${systemId}`);
-  redirect(`/systems/${systemId}/evaluating`);
+
+  if (system?.website_url) {
+    redirect(`/systems/${systemId}/evaluating`);
+  } else {
+    redirect(`/systems/${systemId}/evaluate/manual`);
+  }
 }

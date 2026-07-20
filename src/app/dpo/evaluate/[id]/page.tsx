@@ -1,7 +1,7 @@
 import { createClient } from "@supabase/supabase-js";
 import { CheckCircle2, ShieldAlert, Clock, AlertCircle } from "lucide-react";
 import { notFound } from "next/navigation";
-import DpoVerdictForm from "@/components/DpoVerdictForm";
+import DpoStandaloneClient from "@/components/DpoStandaloneClient";
 
 export default async function PublicDpoReviewPage({ params }: { params: Promise<{ id: string }> }) {
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
@@ -121,12 +121,13 @@ export default async function PublicDpoReviewPage({ params }: { params: Promise<
       </div>
 
       {/* Form Parere DPO */}
-      <DpoVerdictForm
+      <DpoStandaloneClient
         systemId={evaluation.ai_system_id}
         evaluationId={evaluation.id}
-        autoVerdict={evaluation.dpo_auto_verdict}
+        autoVerdict={evaluation.dpo_auto_verdict || ""}
         initialConditions={evaluation.dpo_conditions || ""}
-        redirectUrl="/dpo/success"
+        initialMotivations={evaluation.dpo_motivations || ""}
+        initialVerdict={evaluation.dpo_final_verdict || ""}
       />
     </div>
   );

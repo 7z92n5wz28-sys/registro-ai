@@ -30,6 +30,8 @@ export async function GET(req: Request) {
       "Rischio AI Act",
       "Punteggio DPO",
       "Verdetto Auto",
+      "Verdetto Finale (Avallo)",
+      "Condizioni/Prescrizioni",
       "Anno Scolastico",
       "Data Censimento",
     ];
@@ -41,12 +43,14 @@ export async function GET(req: Request) {
       s.activity_area || "",
       (s.subjects || []).join("; "),
       (s.categories || []).join("; "),
-      s.status || "draft",
+      s.eval_status || "draft",
       s.risk_level || "da_valutare",
       s.dpo_score !== null ? s.dpo_score : "",
       s.dpo_auto_verdict || "",
+      s.dpo_final_verdict || "",
+      s.dpo_conditions || "",
       s.school_year || "",
-      s.created_at ? new Date(s.created_at).toLocaleDateString("it-IT") : "",
+      s.registered_at ? new Date(s.registered_at).toLocaleDateString("it-IT") : "",
     ]);
 
     const csvContent = [

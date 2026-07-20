@@ -98,13 +98,17 @@ export default function EvaluatingPage({ params }: { params: Promise<{ id: strin
           .single();
 
         const matched = (evidences || []).filter(e => 
-          ["q1","q2","q3","q4","q5"].includes(e.parameter_key)
+          [
+            "emotion", "biometric", "scoring", "manipulation",
+            "access", "students", "orientation", "staff", "exam", "interaction", "synthetic",
+            "serverUE", "extraData", "marketing", "dpa"
+          ].includes(e.parameter_key)
         ).length;
 
         setResult({
           searchSources: searchData?.sourcesCount || (searchData?.sources?.length || 0),
           aiEvidences: evidences?.length || 0,
-          totalQuestions: 5,
+          totalQuestions: 15,
           matchedQuestions: matched,
           systemInfo: updatedSystem,
           acnQualified: updatedEval?.dpo_acn_marketplace || false

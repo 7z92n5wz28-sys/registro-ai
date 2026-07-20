@@ -2,7 +2,19 @@ import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import OpenAI from "openai";
 
-export const maxDuration = 60; // Set max duration for API route
+export const maxDuration = 60;
+
+const SYSTEM_PROMPT_BASE = `Sei un esperto legale, DPO scolastico e analista IT specializzato in AI Act. Analizza il contesto fornito e restituisci un SINGOLO OGGETTO JSON.
+
+REGOLE CRITICHE:
+- Per il campo 'f' (fonte), usa SEMPRE in ordine di priorità:
+  1. Un SINGOLO URL HTTPS che hai realmente consultato e che parla SPECIFICAMENTE della funzionalità richiesta.
+  2. Se non hai trovato una pagina specifica: "Nessuna fonte specifica reperita — valutazione basata sulla descrizione fornita".
+  NON inventare URL. NON riportare un URL solo perché è la home page.
+- Estrai l'URL corretto dal blocco 'Source: [URL]' SOLO SE riguarda l'app in analisi. Se l'informazione trovata appartiene a un'altra app o è generica, la devi IGNORARE TOTALMENTE e restituire null o stringa descrittiva.
+- Il campo 'c' indica la confidenza: usa "to_verify" se sei insicuro, se è un'ipotesi o un'inferenza indiretta. Altrimenti "inferred".
+- Il campo 'r' deve essere strettamente "si" o "no".
+- Il campo 'm' deve contenere una chiara spiegazione (rationale) in italiano.`;
 
 export async function POST(req: Request) {
   try {
@@ -19,193 +31,200 @@ export async function POST(req: Request) {
     const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
 
     // Fetch crawl results
-    const { data: crawlResults, error: fetchError } = await supabase
+    const { data: crawlResults } = await supabase
       .from("crawl_results")
       .select("*")
       .eq("evaluation_id", evaluationId);
 
-    if (fetchError) throw fetchError;
-
-    // Fetch system to get name/provider for ACN check
+    // Fetch system
     const { data: systemInfo } = await supabase
       .from("ai_systems")
-      .select("name, provider")
+      .select("*")
       .eq("id", systemId)
       .single();
 
-    const ACN_QUALIFIED_KEYWORDS = [
-      "google workspace", "microsoft 365", "microsoft azure", "aws", "amazon web services", 
-      "canva", "aruba", "zoom", "cisco webex", "salesforce", "oracle", "sap", "ibm cloud",
-      "cloudflare", "dropbox", "box", "slack", "webex", "adobe"
-    ];
-
-    let isAcnQualified = false;
-    if (systemInfo) {
-      const searchString = `${systemInfo.name} ${systemInfo.provider}`.toLowerCase();
-      isAcnQualified = ACN_QUALIFIED_KEYWORDS.some(kw => searchString.includes(kw));
+    if (!systemInfo) {
+      return NextResponse.json({ error: "System not found" }, { status: 404 });
     }
 
-    const contextText = crawlResults && crawlResults.length > 0 
-      ? crawlResults.map((r: any) => `Source: ${r.url}\nContent:\n${r.content_markdown}`).join("\n\n---\n\n")
-      : "Nessun contesto aggiuntivo disponibile dal web.";
+    const contextCommon = `
+STRUMENTO IN ANALISI:
+- Nome: ${systemInfo.name}
+- Fornitore: ${systemInfo.provider}
+- Sito web: ${systemInfo.website_url || "non indicato"}
+- Tipologia: ${(systemInfo.categories || []).join(", ") || "non indicata"}
+- Soggetti coinvolti: ${(systemInfo.subjects || []).join(", ") || "non indicati"}
+- Attività Didattica: ${(systemInfo.activities_didattica || []).join(", ") || "non indicata"}
+- Attività Amministrazione: ${(systemInfo.activities_amministrazione || []).join(", ") || "non indicata"}
+- Note: ${systemInfo.notes || "nessuna"}
 
-    let aiEvidences = [];
-    let dpoConditions = "";
-    let riskLevel = "minimal";
-    let complianceReqs = {
-      q1: "no", q2: "no", q3: "no", q4: "no", q5: "no"
-    };
+FONTI WEB ANALIZZATE:
+${crawlResults && crawlResults.length > 0 
+  ? crawlResults.map((r: any) => `Source: ${r.url}\nContent:\n${r.content_markdown}`).join("\n\n---\n\n").substring(0, 30000)
+  : "Nessun contesto aggiuntivo disponibile dal web."}
+`;
+
+    let aiEvidences: any[] = [];
 
     if (OPENAI_API_KEY) {
       const openai = new OpenAI({ apiKey: OPENAI_API_KEY });
-      const truncatedContext = contextText.substring(0, 30000);
 
-      const promptSystem = `Sei un esperto legale, DPO scolastico e analista IT specializzato in AI Act. Analizza il contesto fornito e restituisci un SINGOLO OGGETTO JSON con la seguente struttura esatta:
-{
-  "evidences": [
-    { "parameter_key": "q1", "ai_proposed_value": "yes|no", "ai_rationale": "Spiegazione dettagliata IN ITALIANO", "ai_source_url": "URL esatto della fonte o null", "ai_source_snippet": "Esatta citazione o null" },
-    { "parameter_key": "q2", "ai_proposed_value": "yes|no", "ai_rationale": "Spiegazione dettagliata IN ITALIANO", "ai_source_url": "URL esatto della fonte o null", "ai_source_snippet": "Esatta citazione o null" },
-    { "parameter_key": "q3", "ai_proposed_value": "yes|no", "ai_rationale": "Spiegazione dettagliata IN ITALIANO", "ai_source_url": "URL esatto della fonte o null", "ai_source_snippet": "Esatta citazione o null" },
-    { "parameter_key": "q4", "ai_proposed_value": "yes|no", "ai_rationale": "Spiegazione dettagliata IN ITALIANO", "ai_source_url": "URL esatto della fonte o null", "ai_source_snippet": "Esatta citazione o null" },
-    { "parameter_key": "q5", "ai_proposed_value": "yes|no", "ai_rationale": "Spiegazione dettagliata IN ITALIANO", "ai_source_url": "URL esatto della fonte o null", "ai_source_snippet": "Esatta citazione o null" }
-  ],
-  "system_info": {
-    "categories": ["writing_assistant", "chatbot", "image_generator", "presentations", "quiz", "concept_maps", "search", "translation", "coding", "accessibility_bes_dsa", "other"],
-    "subjects": ["students", "minor_students", "teachers", "ata", "families", "no_personal_data"],
-    "activities_didattica": ["teaching_materials", "quiz", "tutoring", "bes_dsa", "research", "coding", "other"],
-    "activities_amministrazione": ["circulars", "spreadsheets", "schedules", "pnrr", "other"]
-  },
-  "classification": {
-    "risk_level": "unacceptable" | "high" | "minimal",
-    "q1_manipulation": "yes" | "no",
-    "q2_social_scoring": "yes" | "no",
-    "q3_emotion": "yes" | "no",
-    "q4_biometric": "yes" | "no",
-    "q5_education_access": "yes" | "no"
-  },
-  "dpo_conditions": "Raccomandazioni di mitigazione in italiano (max 500 caratteri)"
-}
+      const runCall = async (promptName: string, promptContent: string, keys: string[]) => {
+        try {
+          const response = await openai.chat.completions.create({
+            model: "gpt-4o",
+            response_format: { type: "json_object" },
+            messages: [
+              { role: "system", content: `${SYSTEM_PROMPT_BASE}\n\n${promptContent}` },
+              { role: "user", content: contextCommon }
+            ]
+          });
+          
+          const extractedText = response.choices[0].message.content || "{}";
+          const extracted = JSON.parse(extractedText);
+          
+          const results = [];
+          for (const key of keys) {
+            if (extracted[key]) {
+              const rVal = String(extracted[key].r || "").toLowerCase();
+              let r = rVal.startsWith("s") || rVal.startsWith("y") ? "si" : "no";
+              
+              const cVal = String(extracted[key].c || "").toLowerCase();
+              let c = cVal.includes("verif") ? "to_verify" : "inferred";
+              
+              // I parametri DPO (chiamata 5) sono tutti fattuali e richiedono sempre verifica
+              if (promptName === "DPO") {
+                 c = "to_verify";
+              }
 
-REGOLE CRITICHE:
-- 'evidences': DEVE contenere SEMPRE 5 elementi esatti per q1, q2, q3, q4, q5. Se non ci sono evidenze nei testi specifici per l'app ${systemInfo?.name || "in analisi"}, usa "no" e spiega nel rationale l'assenza di rischi.
-- 'ai_source_url': Estrai l'URL corretto dal blocco 'Source: [URL]' SOLO SE riguarda l'app ${systemInfo?.name || "in analisi"}. Se l'informazione trovata appartiene a un'altra app (es. i-ready) o è una best practice generica (es. termly.io, europa.eu), la devi IGNORARE TOTALMENTE e restituire null. Non inserire MAI URL generici.
-- 'ai_source_snippet': Copia e incolla la porzione di testo. Se non hai evidenze tratte direttamente dai documenti ufficiali di ${systemInfo?.name || "questa app"}, restituisci null. Non citare MAI app di terzi o articoli esterni.
-- 'system_info': seleziona dai valori ammessi mostrati sopra (estrai solo quelli rilevanti).
-- 'classification.risk_level': se una pratica vietata (q1-q4) è "yes", il rischio è "unacceptable". Se q5 è "yes", il rischio è "high". Altrimenti "minimal".
-- 'dpo_conditions': scrivi misure tecniche chiare per l'uso a scuola (non usare markdown).`;
+              let f = extracted[key].f;
+              let url = null;
+              let snippet = null;
+              
+              if (f && typeof f === "string") {
+                if (f.startsWith("http")) {
+                  url = f;
+                } else {
+                  snippet = f;
+                }
+              }
 
-      const response = await openai.chat.completions.create({
-        model: "gpt-4o",
-        response_format: { type: "json_object" },
-        messages: [
-          { role: "system", content: promptSystem },
-          { role: "user", content: truncatedContext }
-        ]
+              results.push({
+                evaluation_id: evaluationId,
+                parameter_key: key,
+                ai_proposed_value: r,
+                ai_rationale: extracted[key].m || "",
+                ai_source_url: url,
+                ai_source_snippet: snippet,
+                ai_confidence: c
+              });
+            }
+          }
+          return results;
+        } catch (err) {
+          console.error(`Error in OpenAI call ${promptName}:`, err);
+          throw err;
+        }
+      };
+
+      const p1 = runCall(
+        "Vietate", 
+        `Analizza le pratiche vietate (art. 5 AI Act). 
+        emotion: Riconoscimento emozioni in ambienti educativi o lavorativi.
+        biometric: Categorizzazione biometrica su dati sensibili.
+        scoring: Social scoring basato su comportamento.
+        manipulation: Pratiche manipolative verso vulnerabili/minori.
+        Restituisci JSON: { "emotion": {"r":"si|no", "m":"motivo", "c":"inferred|to_verify", "f":"fonte url/testo"}, "biometric": {...}, "scoring": {...}, "manipulation": {...} }`, 
+        ["emotion", "biometric", "scoring", "manipulation"]
+      );
+      
+      const p2 = runCall(
+        "Tier1_1", 
+        `Analizza alto rischio (Allegato III). 
+        access: Determina l'accesso o l'ammissione alle istituzioni scolastiche.
+        students: Valuta i risultati dell'apprendimento o il livello di istruzione.
+        orientation: Valuta per orientamento a specifici percorsi formativi.
+        Restituisci JSON: { "access": {"r":"si|no", "m":"motivo", "c":"inferred|to_verify", "f":"fonte"}, "students": {...}, "orientation": {...} }`, 
+        ["access", "students", "orientation"]
+      );
+      
+      const p3 = runCall(
+        "Tier1_2", 
+        `Analizza alto rischio (Allegato III).
+        staff: Reclutamento, selezione, task allocation o valutazione delle performance del personale.
+        exam: Proctoring (sorveglianza automatica) durante esami.
+        Restituisci JSON: { "staff": {"r":"si|no", "m":"motivo", "c":"inferred|to_verify", "f":"fonte"}, "exam": {...} }`, 
+        ["staff", "exam"]
+      );
+      
+      const p4 = runCall(
+        "Tier2", 
+        `Analizza rischio limitato (art. 50).
+        interaction: Interagisce direttamente con persone fisiche (es. chatbot).
+        synthetic: Genera contenuti sintetici testuali, audio, immagini o video (deepfake).
+        Restituisci JSON: { "interaction": {"r":"si|no", "m":"motivo", "c":"inferred|to_verify", "f":"fonte"}, "synthetic": {...} }`, 
+        ["interaction", "synthetic"]
+      );
+      
+      const p5 = runCall(
+        "DPO", 
+        `Analizza parametri DPO.
+        serverUE: Server o dati conservati nello Spazio Economico Europeo.
+        extraData: Richiede inserimento di dati personali ulteriori oltre ai dati di login.
+        marketing: Usa i dati per inviare comunicazioni di marketing.
+        dpa: È presente e sottoscrivibile un Data Processing Agreement (DPA).
+        acn: Lo strumento è nel catalogo ACN o usa infrastruttura qualificata ACN (es. AWS, Azure, Google Cloud).
+        usesAI: Utilizza effettivamente Intelligenza Artificiale generativa o inferenziale.
+        Restituisci JSON: { "serverUE": {"r":"si|no", "m":"...", "c":"...", "f":"..."}, "extraData": {...}, "marketing": {...}, "dpa": {...}, "acn": {...}, "usesAI": {...} }`, 
+        ["serverUE", "extraData", "marketing", "dpa", "acn", "usesAI"]
+      );
+
+      const results = await Promise.allSettled([p1, p2, p3, p4, p5]);
+      
+      results.forEach(res => {
+        if (res.status === "fulfilled") {
+          aiEvidences.push(...res.value);
+        } else {
+          console.error("Una chiamata AI ha fallito:", res.reason);
+        }
       });
+      
+      // Controllo ACN keyword locale come fallback supplementare
+      const ACN_QUALIFIED_KEYWORDS = [
+        "google workspace", "microsoft 365", "microsoft azure", "aws", "amazon web services", 
+        "canva", "aruba", "zoom", "cisco webex", "salesforce", "oracle", "sap", "ibm cloud",
+        "cloudflare", "dropbox", "box", "slack", "webex", "adobe"
+      ];
+      const searchString = `${systemInfo.name} ${systemInfo.provider}`.toLowerCase();
+      const isAcnQualified = ACN_QUALIFIED_KEYWORDS.some(kw => searchString.includes(kw));
 
-      const extractedText = response.choices[0].message.content || "{}";
-      console.log("OpenAI raw single-pass response:", extractedText);
-      const extracted = JSON.parse(extractedText);
-
-      // 1. Evidences
-      if (extracted.evidences && Array.isArray(extracted.evidences)) {
-        aiEvidences = extracted.evidences.map((e: any) => ({
-          evaluation_id: evaluationId,
-          parameter_key: e.parameter_key,
-          ai_proposed_value: e.ai_proposed_value,
-          ai_rationale: e.ai_rationale,
-          ai_source_url: e.ai_source_url,
-          ai_source_snippet: e.ai_source_snippet,
-          ai_confidence: "inferred"
-        }));
-      } else {
-        console.warn("OpenAI did not return an array of evidences! Extracted object:", extracted);
+      const acnEvidence = aiEvidences.find(e => e.parameter_key === "acn");
+      if (acnEvidence && isAcnQualified && acnEvidence.ai_proposed_value === "no") {
+        acnEvidence.ai_proposed_value = "si";
+        acnEvidence.ai_rationale = "Corrispondenza rilevata con vendor cloud/infrastrutture qualificati ACN.";
+        acnEvidence.ai_confidence = "to_verify";
       }
-
-      // 2. System Info
-      if (extracted.system_info) {
-        await supabase.from("ai_systems").update({
-          categories: extracted.system_info.categories || [],
-          subjects: extracted.system_info.subjects || [],
-          activities_didattica: extracted.system_info.activities_didattica || [],
-          activities_amministrazione: extracted.system_info.activities_amministrazione || []
-        }).eq("id", systemId);
-      }
-
-      // 3. Classification
-      if (extracted.classification) {
-        riskLevel = extracted.classification.risk_level || "minimal";
-        complianceReqs = {
-          q1: extracted.classification.q1_manipulation || "no",
-          q2: extracted.classification.q2_social_scoring || "no",
-          q3: extracted.classification.q3_emotion || "no",
-          q4: extracted.classification.q4_biometric || "no",
-          q5: extracted.classification.q5_education_access || "no"
-        };
-      }
-
-      // 4. DPO Conditions
-      dpoConditions = extracted.dpo_conditions || "";
 
     } else {
       console.log("No OPENAI_API_KEY provided. Using mock data.");
-      
       aiEvidences = [
-        { evaluation_id: evaluationId, parameter_key: "q1", ai_proposed_value: "no", ai_rationale: "Nessun rischio di manipolazione.", ai_confidence: "inferred" },
-        { evaluation_id: evaluationId, parameter_key: "q2", ai_proposed_value: "no", ai_rationale: "Non effettua social scoring.", ai_confidence: "inferred" },
-        { evaluation_id: evaluationId, parameter_key: "q3", ai_proposed_value: "no", ai_rationale: "Non rileva emozioni.", ai_confidence: "inferred" },
-        { evaluation_id: evaluationId, parameter_key: "q4", ai_proposed_value: "no", ai_rationale: "Nessuna categorizzazione biometrica.", ai_confidence: "inferred" },
-        { evaluation_id: evaluationId, parameter_key: "q5", ai_proposed_value: "no", ai_rationale: "Non incide sull'accesso all'istruzione.", ai_confidence: "inferred" }
+        { evaluation_id: evaluationId, parameter_key: "emotion", ai_proposed_value: "no", ai_rationale: "Mock data", ai_confidence: "inferred" }
       ];
-
-      dpoConditions = "Assicurarsi di non inserire nomi di studenti nei prompt. Disattivare la cronologia di salvataggio dei dati sul server del fornitore.";
-      riskLevel = "minimal";
-      complianceReqs = { q1: "no", q2: "no", q3: "no", q4: "no", q5: "no" };
     }
 
-    // Save evidences to DB
+    // Save evidences
     if (aiEvidences.length > 0) {
+      // Pulisce vecchie evidences per questa evaluation
+      await supabase.from("ai_evidences").delete().eq("evaluation_id", evaluationId);
+      
       const { error: insertError } = await supabase.from("ai_evidences").insert(aiEvidences);
       if (insertError) {
         console.error("Error inserting evidences:", insertError);
         throw insertError;
       }
-    } else {
-      console.warn("WARNING: aiEvidences array is empty! This means OpenAI didn't return any evidences.");
     }
 
-    // Calcola score deterministico
-    let score = 0;
-    if (riskLevel === "minimal") score += 2;
-    if (riskLevel === "high") score -= 2;
-    if (riskLevel === "unacceptable") score -= 5;
-    if (dpoConditions.length > 50) score += 1;
-
-    let verdict = "approved";
-    if (riskLevel === "unacceptable") verdict = "rejected";
-    else if (score < 0) verdict = "rejected";
-    else if (score >= 0 && score <= 2) verdict = "approved_with_conditions";
-
-    // Update evaluation draft
-    const { error: updateError } = await supabase
-      .from("evaluations")
-      .update({
-        prohibited_vulnerability_manipulation: complianceReqs.q1 === "yes",
-        prohibited_social_scoring: complianceReqs.q2 === "yes",
-        prohibited_emotion_recognition: complianceReqs.q3 === "yes",
-        prohibited_biometric_categorization: complianceReqs.q4 === "yes",
-        prohibited_access_determination: complianceReqs.q5 === "yes",
-        risk_level: riskLevel,
-        dpo_conditions: dpoConditions,
-        dpo_acn_marketplace: isAcnQualified,
-        dpo_score: score,
-        dpo_auto_verdict: verdict
-      })
-      .eq("id", evaluationId);
-
-    if (updateError) throw updateError;
-
-    return NextResponse.json({ success: true });
+    return NextResponse.json({ success: true, count: aiEvidences.length });
   } catch (error: any) {
     console.error("Error in evaluate/analyze:", error);
     return NextResponse.json({ error: error.message || "Internal server error" }, { status: 500 });

@@ -2,7 +2,7 @@ import { createClient } from "@/utils/supabase/server";
 import { ArrowLeft } from "lucide-react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import ManualEvaluationWizard from "@/components/ManualEvaluationWizard";
+import WizardShell from "@/components/wizard/WizardShell";
 
 export default async function ManualEvaluationPage({ params }: { params: Promise<{ id: string }> }) {
   const supabase = await createClient();
@@ -27,8 +27,6 @@ export default async function ManualEvaluationPage({ params }: { params: Promise
     .single();
 
   if (evalError || !evaluation) {
-    // Ideally this shouldn't happen because we create a draft on system creation,
-    // but handle gracefully
     notFound();
   }
 
@@ -50,7 +48,7 @@ export default async function ManualEvaluationPage({ params }: { params: Promise
         </div>
       </div>
 
-      <ManualEvaluationWizard system={system} evaluation={evaluation} aiEvidences={aiEvidences || []} />
+      <WizardShell system={system} evaluation={evaluation} aiEvidences={aiEvidences || []} />
     </div>
   );
 }

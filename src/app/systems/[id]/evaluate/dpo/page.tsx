@@ -3,6 +3,7 @@ import { ArrowLeft, CheckCircle2, ShieldAlert, AlertCircle, Clock } from "lucide
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import DpoVerdictForm from "@/components/DpoVerdictForm";
+import DpoStandaloneClient from "@/components/DpoStandaloneClient";
 
 export default async function DpoReviewPage({ params }: { params: Promise<{ id: string }> }) {
   const supabase = await createClient();
@@ -121,11 +122,13 @@ export default async function DpoReviewPage({ params }: { params: Promise<{ id: 
       </div>
 
       {/* Form Parere DPO */}
-      <DpoVerdictForm
+      <DpoStandaloneClient
         systemId={id}
         evaluationId={evaluation.id!}
-        autoVerdict={evaluation.dpo_auto_verdict as string | null}
-        initialConditions={(evaluation.dpo_conditions as string | null) || ""}
+        autoVerdict={(evaluation.dpo_auto_verdict as string) || ""}
+        initialConditions={(evaluation.dpo_conditions as string) || ""}
+        initialMotivations={(evaluation.dpo_motivations as string) || ""}
+        initialVerdict={(evaluation.dpo_final_verdict as string) || ""}
       />
     </div>
   );
